@@ -17,8 +17,7 @@
   </style>
 </head>
 <body>
-  <div id="loading">🌱 Humus-Kompass lädt…</div>
-  <div id="root" style="display:none"></div>
+  <div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#3a9e8c;font-size:18px;font-family:Georgia,serif;">🌱 Humus-Kompass lädt…</div></div>
 
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
@@ -880,17 +879,18 @@ root.render(<App />);
   </script>
 
   <script>
-    // Show app once React has mounted
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(function() {
-        var loading = document.getElementById('loading');
-        var root = document.getElementById('root');
-        if (root && root.children.length > 0) {
-          loading.style.display = 'none';
-          root.style.display = 'block';
-        }
-      }, 2000);
-    });
+    // Show app once React has mounted - check repeatedly
+    function checkMounted() {
+      var loading = document.getElementById('loading');
+      var root = document.getElementById('root');
+      if (root && root.children.length > 0) {
+        loading.style.display = 'none';
+        root.style.display = 'block';
+      } else {
+        setTimeout(checkMounted, 200);
+      }
+    }
+    setTimeout(checkMounted, 500);
   </script>
 
   <!-- Content Notice Footer -->
