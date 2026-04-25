@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🌱 Humus-Kompass</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f6f0e6; font-family: Georgia, serif; }
+    #root { min-height: 100vh; }
+    #loading { display: flex; align-items: center; justify-content: center;
+               min-height: 100vh; color: #3a9e8c; font-size: 18px; font-family: Georgia, serif; }
+  </style>
+</head>
+<body>
+  <div id="loading">🌱 Humus-Kompass lädt…</div>
+  <div id="root" style="display:none"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+
+const P = {
+  cream:"#f6f0e6", creamDim:"#e8e0d0",
+  teal:"#3a9e8c", tealDim:"#2a7265", tealPale:"#d0ece7",
+  gold:"#d4a84b", goldPale:"#f5e8c8",
+  coral:"#e0806a", coralPale:"#f5d5cc",
+  dark:"#2c2820", mid:"#6a5e50", light:"#9a8e80", white:"#fdfaf5",
+};
+
+// 3 Sphären — schmale Bänder, Text zentriert in Bandmitte
+var SPHERES = [
+  {id:"charakter-werte",   rOuter:308, rInner:283,
+   oLabel:"Charakter · Belonging ↔ Othering", iLabel:"Werte & Haltung · How",
+   color:"#3a9e8c", pale:"#d0ece7"},
+  {id:"naturkultur-ideen", rOuter:283, rInner:258,
+   oLabel:"Natur- & Kulturverständnis",       iLabel:"Ideen & Vorstellung · Why",
+   color:"#d4a84b", pale:"#f5e8c8"},
+  {id:"bias-fühlen",       rOuter:258, rInner:233,
+   oLabel:"Bias & Sinne",                     iLabel:"Fühlen & Machen · Who",
+   color:"#e0806a", pale:"#f5d5cc"},
+];
+
+var VENN_REGIONS = [
+  {id:"kontexte",   label:"Kontexte / Inhalte / Fragen", color:"#3a9e8c",
+   desc:"Was ist das Thema, der Inhalt, die Frage? Welche Kontexte sind da?"},
+  {id:"figuren",    label:"Figuren",  color:"#d46878",
+   desc:"Menschen, Wesen, Identitätsgruppen, Kulturgestalten (Mutter, Baum, Fluss, Ampel…)"},
+  {id:"strukturen", label:"Strukturen / Systeme", color:"#9a70c8",
+   desc:"Welche Strukturen und Systeme rahmen das Handeln?"},
+  {id:"anlässe",    label:"Anlässe & Motivationen", color:"#5aaa6e",
+   desc:"Mit welchem Motiv setzt sich eine Figur mit einem Kontext auseinander?"},
+  {id:"prozesse",   label:"Prozesse & Routinen",    color:"#7cb9c8",
+   desc:"Auf welche Art agieren Figuren in / mit / als welche Systeme(n)?"},
+  {id:"mittel",     label:"Mittel & Werkzeuge",     color:"#c8a44a",
+   desc:"Welche Systeme ermöglichen welche Mittel und Werkzeuge für Kontexte?"},
+  {id:"wirkung",    label:"Wirkung", color:"#2c2820",
+   desc:"Wenn Felder zusammenspielen entsteht Wirkung – und neue Grundbedingungen für die nächste Konstellation."},
+];
+
+var FELDER = [
+  "Donut-Ökonomie","sozial-ökologische Transformation","globale Gerechtigkeit",
+  "Klima- & Ressourcen-Gerechtigkeit","Dekolonialisierung","Digitalität",
+  "Landwirtschaft & Ernährung","globales Lernen & transformative Bildung",
+  "Fairer Handel & regenerative Wirtschaft","Flucht & Ankunft",
+  "Diaspora & Migration","Frieden & Abrüstung",
+];
+var REGIONS     = [{id:"eu",label:"Europa 🇪🇺"},{id:"na",label:"Nordamerika 🌎"},{id:"la",label:"Lateinamerika 🌿"},{id:"as",label:"Asien 🌏"},{id:"af",label:"Afrika 🌍"},{id:"oz",label:"Ozeanien 🌊"}];
+var HEMISPHERES = [{id:"nord",label:"🌐 Glob. Norden"},{id:"süd",label:"🌍 Glob. Süden"}];
+var GENERATIONS = [{id:"boomer",label:"Boomer"},{id:"genx",label:"Gen X"},{id:"millennial",label:"Millennial"},{id:"genz",label:"Gen Z"}];
+var GENDERS     = [{id:"w",label:"♀"},{id:"m",label:"♂"},{id:"nb",label:"⚧"},{id:"div",label:"⚥"}];
+var ALPHA_RANGES = ["A–E","F–J","K–O","P–T","U–Z"];
+function letterInRange(l,r){var m={"A–E":"ABCDE","F–J":"FGHIJ","K–O":"KLMNO","P–T":"PQRST","U–Z":"UVWXYZ"};return (m[r]||"").indexOf((l||"").toUpperCase())>=0;}
+function defaultFilters(){return {types:[],sphere:null,alphaMode:null,alphaRange:[],region:[],hemisphere:[],generation:[],gender:[]};}
+function toggleArr(a,v){return a.indexOf(v)>=0?a.filter(function(x){return x!==v;}):a.concat([v]);}
+function escReg(s){return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");}
+function sc(id){var s=SPHERES.find(function(x){return x.id===id;});return s?s.color:P.teal;}
+function sp(id){var s=SPHERES.find(function(x){return x.id===id;});return s?s.pale:P.tealPale;}
+var TL={guest:"🎙",frankly:"💬",roundtable:"🔄"};
+
+var EPISODES = [
+  {num:216,type:"guest",guest:"Sam Harris",role:"Philosoph, Neurowissenschaftler",gender:"m",generation:"genx",region:"na",hemisphere:"nord",title:"Navigating the Metacrisis: Finding Calm through Awareness and Meditation",spheres:["charakter-werte","bias-fühlen","naturkultur-ideen"],felder:["globales Lernen & transformative Bildung"],vennFields:["kontexte","figuren","anlässe","wirkung"],keywords:["Metakrise","Meditation","Bewusstsein","KI","Achtsamkeit"],quote:"Die einzige vernünftige Antwort auf diese Zeit ist radikale Aufmerksamkeit.",yt:"juOzBh2ODt0",url:"/episode/216-sam-harris"},
+  {num:215,type:"guest",guest:"Chris Keefer",role:"Arzt, Canadians for Nuclear Energy",gender:"m",generation:"millennial",region:"na",hemisphere:"nord",title:"Scrambling for Energy Security",spheres:["bias-fühlen","naturkultur-ideen"],felder:["Klima- & Ressourcen-Gerechtigkeit","Frieden & Abrüstung"],vennFields:["kontexte","strukturen","mittel"],keywords:["Kernenergie","Energiesicherheit","Lieferketten"],yt:"wFwQBknfWeg",url:"/episode/215-chris-keefer"},
+  {num:214,type:"guest",guest:"Tristan Harris",role:"Center for Humane Technology",gender:"m",generation:"millennial",region:"na",hemisphere:"nord",title:"Ending the AI Arms Race",spheres:["bias-fühlen","naturkultur-ideen","charakter-werte"],felder:["Digitalität","sozial-ökologische Transformation"],vennFields:["kontexte","strukturen","mittel","wirkung"],keywords:["KI-Sicherheit","humane Technologie","Rüstungswettlauf"],quote:"Wir brauchen keine bessere KI – wir brauchen eine weiser gestaltete Welt.",yt:"r0JVbEmZt6I",url:"/episode/214-tristan-harris"},
+  {num:213,type:"guest",guest:"Christine Webb",role:"Primatolgin",gender:"w",generation:"millennial",region:"na",hemisphere:"nord",title:"Questioning Human Exceptionalism",spheres:["naturkultur-ideen","charakter-werte"],felder:["sozial-ökologische Transformation","Dekolonialisierung"],vennFields:["kontexte","figuren","anlässe"],keywords:["Menschlicher Exzeptionalismus","Primaten","Biosphäre"],quote:"Exzeptionalismus ist ein Luxus, den wir uns nicht mehr leisten können.",yt:"ArHrLzkJm_k",url:"/episode/213-christine-webb"},
+  {num:212,type:"guest",guest:"John Cook",role:"Forscher Wissenschaftskommunikation",gender:"m",generation:"millennial",region:"oz",hemisphere:"nord",title:"How to Inoculate Against Misinformation",spheres:["bias-fühlen","naturkultur-ideen"],felder:["globales Lernen & transformative Bildung"],vennFields:["kontexte","figuren","prozesse","mittel"],keywords:["Desinformation","kognitive Verzerrung","Klimaleugnung"],quote:"Menschen glauben nicht was wahr ist – sie glauben was ihre Identität bestätigt.",yt:"iQRSZpBWoPE",url:"/episode/212-john-cook"},
+  {num:211,type:"guest",guest:"Jason Bradford",role:"Biologe & Landwirt",gender:"m",generation:"genx",region:"na",hemisphere:"nord",title:"The Future is Rural",spheres:["bias-fühlen","naturkultur-ideen"],felder:["Landwirtschaft & Ernährung","Fairer Handel & regenerative Wirtschaft"],vennFields:["kontexte","strukturen","prozesse"],keywords:["Landwirtschaft","Ernährungssouveränität","Permakultur"],yt:"A7d2o0uesqs",url:"/episode/211-jason-bradford"},
+  {num:210,type:"guest",guest:"Peter Brannen",role:"Wissenschaftsjournalist",gender:"m",generation:"millennial",region:"na",hemisphere:"nord",title:"The Misunderstood History of CO₂",spheres:["naturkultur-ideen"],felder:["Klima- & Ressourcen-Gerechtigkeit"],vennFields:["kontexte","strukturen"],keywords:["CO₂","Erdgeschichte","Massenaussterben"],yt:"pJ_IcXdB0qs",url:"/episode/210-peter-brannen"},
+  {num:208,type:"guest",guest:"Xiye Bastida",role:"Indigene Klimaaktivistin",gender:"w",generation:"genz",region:"la",hemisphere:"süd",title:"The New Generation of Environmental Leadership",spheres:["charakter-werte","naturkultur-ideen","bias-fühlen"],felder:["Dekolonialisierung","globale Gerechtigkeit","Klima- & Ressourcen-Gerechtigkeit","Diaspora & Migration"],vennFields:["figuren","anlässe","wirkung"],keywords:["Klimagerechtigkeit","indigenes Wissen","Jugendaktivismus"],yt:"KpVLKubs2KU",url:"/episode/208-xiye-bastida"},
+  {num:206,type:"guest",guest:"Anna Lembke",role:"Psychiaterin, Stanford",gender:"w",generation:"genx",region:"na",hemisphere:"nord",title:"How We've 'Drugified' Our Entire Existence",spheres:["bias-fühlen","charakter-werte"],felder:["sozial-ökologische Transformation","globales Lernen & transformative Bildung"],vennFields:["figuren","prozesse","wirkung"],keywords:["Dopamin","Sucht","Konsum","Neurobiologie"],quote:"Unser Gehirn ist für Knappheit verdrahtet, nicht für Überfluss.",yt:"iksSRPpLOzQ",url:"/episode/206-anna-lembke"},
+  {num:205,type:"guest",guest:"Nate Hagens",role:"Direktor ISEOF",gender:"m",generation:"genx",region:"na",hemisphere:"nord",title:"End of Year Reflections",spheres:["naturkultur-ideen","charakter-werte"],felder:["globales Lernen & transformative Bildung"],vennFields:["kontexte","figuren","anlässe"],keywords:["Reflexion","Podcast","Komplexität"],yt:"4h7Jpf2raBM",url:"/episode/205-nate-hagens"},
+  {num:199,type:"guest",guest:"Iain McGilchrist",role:"Neurowissenschaftler & Philosoph",gender:"m",generation:"boomer",region:"eu",hemisphere:"nord",title:"The Master and His Emissary",spheres:["naturkultur-ideen","charakter-werte"],felder:["globales Lernen & transformative Bildung"],vennFields:["kontexte","figuren","wirkung"],keywords:["Gehirnhemisphären","Wahrnehmung","Kontrolle","Weisheit"],quote:"Mit linkhemisphärischem Denken sieht man alles als Probleme die gelöst werden müssen.",url:"/episode/iain-mcgilchrist"},
+  {num:192,type:"guest",guest:"Maren Urner",role:"Professorin Nachhaltige Transformation",gender:"w",generation:"millennial",region:"eu",hemisphere:"nord",title:"Constructive Journalism and Sustainable Transformation",spheres:["bias-fühlen","naturkultur-ideen"],felder:["globales Lernen & transformative Bildung","sozial-ökologische Transformation"],vennFields:["figuren","prozesse","mittel","wirkung"],keywords:["konstruktiver Journalismus","Hilflosigkeit","Handlungsfähigkeit"],quote:"Das Schlimmste: Menschen das Gefühl geben, ihre Handlungen zählen nicht.",url:"/episode/maren-urner"},
+  {num:185,type:"guest",guest:"Malin Pinsky",role:"Meeresbiologin, Rutgers",gender:"w",generation:"millennial",region:"na",hemisphere:"nord",title:"Ocean Migration & Climate",spheres:["naturkultur-ideen"],felder:["Klima- & Ressourcen-Gerechtigkeit"],vennFields:["kontexte","strukturen","wirkung"],keywords:["Meeresbiologie","Artenwanderung","Ozean"],quote:"Die größte Massenwanderung marinen Lebens seit 10.000 Jahren – Richtung Pole.",url:"/episode/malin-pinsky"},
+  {num:170,type:"guest",guest:"Nora Bateson",role:"Warm Data Lab",gender:"w",generation:"genx",region:"eu",hemisphere:"nord",title:"Warm Data and Living Systems",spheres:["naturkultur-ideen","charakter-werte"],felder:["globales Lernen & transformative Bildung","Fairer Handel & regenerative Wirtschaft"],vennFields:["figuren","prozesse","wirkung"],keywords:["Warm Data","lebende Systeme","Fürsorge","Beziehung"],quote:"Wir können ein lebendes System nicht gleichzeitig verstehen und kontrollieren.",url:"/episode/nora-bateson"},
+  {num:155,type:"guest",guest:"Daniel Schmachtenberger",role:"Philosoph, Consilience Project",gender:"m",generation:"millennial",region:"na",hemisphere:"nord",title:"The Metacrisis and Coordination Failure",spheres:["naturkultur-ideen","charakter-werte"],felder:["globale Gerechtigkeit","sozial-ökologische Transformation"],vennFields:["kontexte","strukturen","anlässe","wirkung"],keywords:["Metakrise","Koordinationsversagen","Sensemaking"],quote:"Das Problem ist nicht Gier – das Problem ist dass Gier systematisch belohnt wird.",url:"/episode/daniel-schmachtenberger"},
+  {num:148,type:"guest",guest:"William Rees",role:"Ökologe, Ecological Footprint",gender:"m",generation:"boomer",region:"na",hemisphere:"nord",title:"Overshoot and Ecological Limits",spheres:["naturkultur-ideen","bias-fühlen"],felder:["Klima- & Ressourcen-Gerechtigkeit","globale Gerechtigkeit"],vennFields:["kontexte","strukturen","mittel"],keywords:["Overshoot","Ökologischer Fußabdruck","planetare Grenzen"],url:"/episode/william-rees"},
+  {num:140,type:"guest",guest:"Dennis Meadows",role:"Systemwissenschaftler",gender:"m",generation:"boomer",region:"na",hemisphere:"nord",title:"50 Years of Limits to Growth",spheres:["naturkultur-ideen","bias-fühlen"],felder:["sozial-ökologische Transformation","Klima- & Ressourcen-Gerechtigkeit"],vennFields:["kontexte","strukturen","wirkung"],keywords:["Grenzen des Wachstums","Systemdynamik","Kollaps"],quote:"Wir haben alle Modelle übertroffen – leider in die falsche Richtung.",url:"/episode/dennis-meadows"},
+  {num:132,type:"guest",guest:"Kate Raworth",role:"Ökonomin, Doughnut Economics",gender:"w",generation:"genx",region:"eu",hemisphere:"nord",title:"Doughnut Economics: Rethinking Growth",spheres:["naturkultur-ideen","charakter-werte"],felder:["Donut-Ökonomie","Fairer Handel & regenerative Wirtschaft","globale Gerechtigkeit"],vennFields:["kontexte","strukturen","mittel","wirkung"],keywords:["Donut-Ökonomie","planetare Grenzen","BIP-Wachstum"],quote:"Warum definieren wir eine gesunde Wirtschaft als eine die wächst egal ob das gut ist?",url:"/episode/kate-raworth"},
+  {num:128,type:"guest",guest:"Simon Michaux",role:"Geologe, GTK Finnland",gender:"m",generation:"genx",region:"oz",hemisphere:"nord",title:"The Mining Challenge for the Energy Transition",spheres:["bias-fühlen","naturkultur-ideen"],felder:["Klima- & Ressourcen-Gerechtigkeit","Fairer Handel & regenerative Wirtschaft"],vennFields:["kontexte","strukturen","mittel"],keywords:["Bergbau","kritische Mineralien","Energiewende"],quote:"Die Energiewende benötigt mehr Ressourcen als auf dem Planeten vorhanden sind.",url:"/episode/simon-michaux"},
+  {num:120,type:"guest",guest:"Jason Hickel",role:"Wirtschaftsanthropologe, LSE",gender:"m",generation:"millennial",region:"af",hemisphere:"süd",title:"Less is More: Degrowth and Ecological Justice",spheres:["charakter-werte","naturkultur-ideen"],felder:["globale Gerechtigkeit","Fairer Handel & regenerative Wirtschaft","Dekolonialisierung"],vennFields:["kontexte","strukturen","anlässe","wirkung"],keywords:["Degrowth","Postwachstum","Kolonialismus"],quote:"Wachstum ist kein Naturgesetz – es ist eine politische Entscheidung.",url:"/episode/jason-hickel"},
+  {num:114,type:"guest",guest:"Richard Heinberg",role:"Post Carbon Institute",gender:"m",generation:"boomer",region:"na",hemisphere:"nord",title:"Peak Everything: The End of Growth",spheres:["bias-fühlen","naturkultur-ideen"],felder:["Klima- & Ressourcen-Gerechtigkeit","sozial-ökologische Transformation"],vennFields:["kontexte","strukturen"],keywords:["Peak Oil","Degrowth","Ressourcenerschöpfung"],url:"/episode/richard-heinberg"},
+  {num:44,type:"guest",guest:"Tim Garrett",role:"Atmosphärenphysiker",gender:"m",generation:"genx",region:"na",hemisphere:"nord",title:"Civilization as a Thermodynamic System",spheres:["naturkultur-ideen"],felder:["Klima- & Ressourcen-Gerechtigkeit"],vennFields:["kontexte","strukturen","wirkung"],keywords:["Thermodynamik","Zivilisation","Energieverbrauch"],quote:"Wirtschaftswachstum und CO₂-Emissionen sind thermodynamisch untrennbar.",url:"/episode/tim-garrett"},
+  {num:12,type:"guest",guest:"Kevin Anderson",role:"Klimawissenschaftler, Manchester",gender:"m",generation:"genx",region:"eu",hemisphere:"nord",title:"Carbon Budgets and Climate Justice",spheres:["charakter-werte"],felder:["Klima- & Ressourcen-Gerechtigkeit","globale Gerechtigkeit"],vennFields:["kontexte","anlässe","wirkung"],keywords:["Kohlenstoffbudget","Klimagerechtigkeit","1,5 Grad"],url:"/episode/kevin-anderson"},
+  {num:4,type:"guest",guest:"Daniel Schmachtenberger",role:"Philosoph, Consilience Project",gender:"m",generation:"millennial",region:"na",hemisphere:"nord",title:"Civilization Design",spheres:["naturkultur-ideen","charakter-werte"],felder:["sozial-ökologische Transformation","globale Gerechtigkeit"],vennFields:["kontexte","strukturen","anlässe","wirkung"],keywords:["Zivilisationsdesign","Sensemaking","Demokratie"],url:"/episode/4-daniel-schmachtenberger"},
+    {num:null,type:"guest",guest:"Vanessa Machado de Oliveira Andreotti",
+   role:"Autorin, Forscherin zu Dekolonialisierung & Komplexität",
+   gender:"w",generation:"mixed",region:"la",hemisphere:"süd",
+   title:"Über die Modernität hinauswachsen: Komplexität, Mitschuld & Kollaps",
+   title_en:"Outgrowing Modernity: Navigating Complexity, Complicity, and Collapse",
+   spheres:["charakter-werte","naturkultur-ideen","bias-fühlen"],
+   felder:["Dekolonialisierung","sozial-ökologische Transformation","globales Lernen & transformative Bildung"],
+   vennFields:["kontexte","figuren","strukturen","prozesse"],
+   keywords:["Modernität","Dekolonialisierung","Klimakollaps","Rechenschaftspflicht","Komplexität","Mitschuld"],
+   keywords_en:["modernity","decolonization","climate collapse","accountability","complexity","hospicing modernity","feminist genealogies"],
+   quote:"Klimakollaps, soziale Krise, der Niedergang der Modernität: Kolonialismus, Kapitalismus und unsere Verleugnung haben ein dringendes neues Zeitalter eingeleitet.",
+   quote_en:"Climate collapse, social crisis, the decline of modernity: colonialism, capitalism, and our full-faced denial have ushered in an urgent new era.",
+   yt:"w0cZuHAjTmA",url:"/episode/w0cZuHAjTmA"},
+  {num:26,type:"guest",guest:"Bayo Akomolafe",
+   role:"Philosoph, Poet, Psychologe, Denker",
+   gender:"m",generation:"millennial",region:"af",hemisphere:"mixed",
+   title:"Jenseits des Weltrettens: Risse als Schwellen zur Poesie",
+   title_en:"Beyond Fixing: Embracing Cracks as Poetic Thresholds",
+   spheres:["charakter-werte","naturkultur-ideen","bias-fühlen"],
+   felder:["sozial-ökologische Transformation","globales Lernen & transformative Bildung","Dekolonialisierung"],
+   vennFields:["kontexte","figuren","prozesse","wirkung"],
+   keywords:["Post-Aktivismus","Schwellräume","autistische Politik","Entschleunigung","Posthumanismus","Mysterium"],
+   keywords_en:["post-activism","poetry as epistemology","mystery","thresholds","posthumanism","autistic politics","slowing down"],
+   quote:"Ränder erfordern Poesie. Poesie als Ringen um Aussagbarkeit, wo Sprache vor dem Großen zurückweicht.",
+   quote_en:"Edges require poetry. Poetry as struggling for what to say, as a failure of speakability where language shrinks away.",
+   yt:"x5dWvKHwWX8",url:"/episode/x5dWvKHwWX8"},
+  {num:null,type:"roundtable",guest:"Bayo Akomolafe & Achille Mbembe",
+   role:"Philosophen und Theoretiker",
+   gender:"mixed",generation:"mixed",region:"af",hemisphere:"mixed",
+   title:"Ist Demokratie weiß? Dekoloniale Perspektiven auf Zugehörigkeit",
+   title_en:"Is Democracy White? Decolonial Perspectives on Belonging",
+   spheres:["charakter-werte","naturkultur-ideen","bias-fühlen"],
+   felder:["Dekolonialisierung","globale Gerechtigkeit","globales Lernen & transformative Bildung"],
+   vennFields:["kontexte","figuren","strukturen","prozesse"],
+   keywords:["Dekolonialität","liberale Demokratie","Zugehörigkeit","epistemische Gerechtigkeit","Moderne"],
+   keywords_en:["decoloniality","liberal democracy","belonging","climate chaos","epistemic justice","modernity"],
+   quote:"Wenn liberale Demokratie ein Kunstprojekt wäre, wer oder was wäre die Kuratorin?",
+   quote_en:"If liberal democracy were an art project, who or what would be the curator?",
+   yt:"qU_1uHdUjLU",url:"/episode/qU_1uHdUjLU"},
+  {num:null,type:"guest",guest:"john a. powell & Stephen Menendian",
+   role:"Direktoren, Othering and Belonging Institute",
+   gender:"mixed",generation:"mixed",region:"na",hemisphere:"nord",
+   title:"Belonging without Othering: Wie wir uns selbst und die Welt retten",
+   title_en:"Belonging without Othering: How We Save Ourselves and the World",
+   spheres:["charakter-werte","bias-fühlen","naturkultur-ideen"],
+   felder:["globale Gerechtigkeit","Dekolonialisierung","globales Lernen & transformative Bildung"],
+   vennFields:["kontexte","strukturen","prozesse","wirkung"],
+   keywords:["Ausgrenzung","Zugehörigkeit","Hierarchie","Inklusion","Gemeinschaft","Transformation"],
+   keywords_en:["othering","belonging","hierarchy","inclusion","community","transformation"],
+   quote:"Können wir Zugehörigkeit aufbauen, ohne einen 'Anderen' zu schaffen?",
+   quote_en:"What kind of world do we envision? Can we build belonging without creating an other?",
+   yt:"B3S5J6tTjj4",url:"/episode/B3S5J6tTjj4"},
+  {num:142,type:"guest",guest:"Roman Krznaric",
+   role:"Sozialphilosoph, Autor, Forschungsleiter",
+   gender:"m",generation:"genx",region:"eu",hemisphere:"nord",
+   title:"Zukunftsmöglichkeiten aus der Vergangenheit der Menschheit",
+   title_en:"Uncovering Future Possibilities from Humanity's Past",
+   spheres:["charakter-werte","naturkultur-ideen","bias-fühlen"],
+   felder:["sozial-ökologische Transformation","globales Lernen & transformative Bildung","Fairer Handel & regenerative Wirtschaft"],
+   vennFields:["kontexte","figuren","strukturen","prozesse"],
+   keywords:["radikale Hoffnung","historische Weisheit","Systemwandel","Zivilisatorische Widerstandskraft","Zukunftsdenken"],
+   keywords_en:["radical hope","historical wisdom","systemic change","civilizational resilience","transformative governance","futures thinking"],
+   quote:"Wir wissen, dass wir die Geschichte hindurch Systeme verändert haben – deshalb sollten wir immer handeln, als wäre Veränderung möglich.",
+   quote_en:"We know throughout history we have managed to change systems – that's why we should always act as if change were possible.",
+   yt:"fXTbcDgg9ek",url:"/episode/fXTbcDgg9ek"},
+  {num:null,type:"roundtable",guest:"Frances Causey & john a. powell",
+   role:"Filmemacherin & Institut-Direktor",
+   gender:"mixed",generation:"mixed",region:"na",hemisphere:"nord",
+   title:"The Long Shadow: Rassismus, weiße Verantwortung und historisches Trauma",
+   title_en:"The Long Shadow: Panel on White Responsibility and Historical Trauma",
+   spheres:["charakter-werte","bias-fühlen","naturkultur-ideen"],
+   felder:["Dekolonialisierung","globale Gerechtigkeit","globales Lernen & transformative Bildung"],
+   vennFields:["kontexte","figuren","strukturen","anlässe"],
+   keywords:["institutioneller Rassismus","weiße Verantwortung","historisches Trauma","Segregation","Dokumentarfilm"],
+   keywords_en:["institutional racism","white responsibility","historical trauma","segregation","documentary filmmaking","social justice"],
+   quote:"Warum beanspruchen weiße Menschen diese schreckliche Geschichte nicht, anstatt African-Americans diese Last zu überlassen?",
+   quote_en:"Why aren't white people claiming this awful history instead of leaving African-Americans to bear this burden?",
+   yt:"_X0LrjdZg2Y",url:"/episode/_X0LrjdZg2Y"},
+  {num:null,type:"guest",guest:"Bayo Akomolafe",
+   role:"W.E.B. Du Bois Scholar in Residence, Schumacher Center",
+   gender:"m",generation:"millennial",region:"mixed",hemisphere:"mixed",
+   title:"May We Live in Interesting Times – Eine Parabel für Enden",
+   title_en:"May We Live in Interesting Times – A Parable for Endings",
+   spheres:["charakter-werte","naturkultur-ideen","bias-fühlen"],
+   felder:["sozial-ökologische Transformation","Dekolonialisierung","globales Lernen & transformative Bildung"],
+   vennFields:["kontexte","strukturen","prozesse","anlässe"],
+   keywords:["Wahlfreiheit","Modernität","binäres Denken","Transformation","interessante Zeiten","Enden"],
+   keywords_en:["choice","modernity","binary thinking","transformation","interesting times","endings"],
+   quote:"Was passiert, wenn Wahlfreiheit anfängt, sich falsch zu verhalten? Wozu ist Wahl gut, wenn sie ihre differenzierende Funktion nicht mehr erfüllt?",
+   quote_en:"What happens when choice starts misbehaving? What is choice good for when it no longer plays a differentiating function?",
+   yt:"tdvu2rn_6d4",url:"/episode/tdvu2rn_6d4"},
+  {num:137,type:"frankly",guest:"Nate Hagens",role:"Solo",gender:"m",generation:"genx",region:"na",hemisphere:"nord",title:"Oil 301: The World After Cheap Energy",spheres:["naturkultur-ideen","bias-fühlen"],felder:["Klima- & Ressourcen-Gerechtigkeit"],vennFields:["kontexte","strukturen"],keywords:["Öl","billige Energie","Zukunft"],yt:"_Jv09GZ4lmE",url:"/frankly-original/137"},
+  {num:136,type:"frankly",guest:"Nate Hagens",role:"Solo",gender:"m",generation:"genx",region:"na",hemisphere:"nord",title:"Oil 201: What Happens When the Oil Stops Flowing",spheres:["naturkultur-ideen","bias-fühlen"],felder:["Klima- & Ressourcen-Gerechtigkeit","Frieden & Abrüstung"],vennFields:["kontexte","strukturen","wirkung"],keywords:["Öl","Hormuzstraße","Energiefluss"],yt:"_kEwDNlNwF0",url:"/frankly-original/136"},
+  {num:126,type:"frankly",guest:"Nate Hagens",role:"Solo",gender:"m",generation:"genx",region:"na",hemisphere:"nord",title:"Humanity as Dr. Jekyll & Mr. Hyde",spheres:["bias-fühlen","naturkultur-ideen"],felder:["sozial-ökologische Transformation","globales Lernen & transformative Bildung"],vennFields:["figuren","anlässe","wirkung"],keywords:["menschliche Natur","Dualität","Psychologie"],quote:"Wir tragen beides in uns – Fähigkeit zur Fürsorge und zur Zerstörung.",yt:"nCHra4-tFIw",url:"/frankly-original/126"},
+  {num:23,type:"roundtable",guest:"Reality Roundtable",role:"Mehrere Gäste",gender:"mixed",generation:"mixed",region:"mixed",hemisphere:"mixed",title:"The Plastic Detox",spheres:["naturkultur-ideen","bias-fühlen"],felder:["Klima- & Ressourcen-Gerechtigkeit"],vennFields:["kontexte","strukturen","mittel"],keywords:["Plastik","Gesundheit"],yt:"fSvLReVP7-U",url:"/episode/reality-roundtable-23"},
+  {num:20,type:"roundtable",guest:"Reality Roundtable",role:"Mehrere Gäste",gender:"mixed",generation:"mixed",region:"mixed",hemisphere:"mixed",title:"Hacking Human Attachment: Loneliness & Dangers of AI",spheres:["bias-fühlen","charakter-werte"],felder:["Digitalität","sozial-ökologische Transformation"],vennFields:["figuren","prozesse","wirkung"],keywords:["Einsamkeit","KI","Bindung"],yt:"nDyczqzjico",url:"/episode/reality-roundtable-20"},
+  {num:17,type:"roundtable",guest:"Reality Roundtable",role:"Mehrere Gäste",gender:"mixed",generation:"mixed",region:"mixed",hemisphere:"mixed",title:"Moving from Apathy to Action",spheres:["bias-fühlen","charakter-werte"],felder:["globales Lernen & transformative Bildung","sozial-ökologische Transformation"],vennFields:["figuren","anlässe","prozesse","wirkung"],keywords:["Trauer","Handlungsfähigkeit","Resilienz"],yt:"IFpnY-ooQhw",url:"/episode/reality-roundtable-17"},
+  {num:14,type:"roundtable",guest:"Reality Roundtable",role:"Mehrere Gäste",gender:"mixed",generation:"mixed",region:"mixed",hemisphere:"mixed",title:"The Future is Local: Bioregioning 101",spheres:["naturkultur-ideen","charakter-werte"],felder:["Landwirtschaft & Ernährung","Fairer Handel & regenerative Wirtschaft"],vennFields:["kontexte","figuren","strukturen","prozesse"],keywords:["Bioregion","Lokalisierung","Gemeinschaft"],yt:"e08dWgk-TRo",url:"/episode/reality-roundtable-14"},
+];
+
+function epId(ep){return ep.type+String(ep.num)+ep.guest.replace(/\s/g,"");}
+
+function Compass(props) {
+  var sz=640, cx=sz/2, cy=sz/2;
+  var [activeVenn, setActiveVenn] = useState(null);
+
+  function arcT(r,ox,oy){ ox=ox||0;oy=oy||0; return "M "+(cx+ox-r)+","+(cy+oy)+" A "+r+","+r+" 0 0,1 "+(cx+ox+r)+","+(cy+oy); }
+  function arcB(r,ox,oy){ ox=ox||0;oy=oy||0; return "M "+(cx+ox-r)+","+(cy+oy)+" A "+r+","+r+" 0 0,0 "+(cx+ox+r)+","+(cy+oy); }
+
+  // Venn: vr=156, d=65 → max reach 221 = rInner(233)−12 ✓
+  var vr=156, d=65, sin60=0.866, cos60=0.5;
+  var Kx=cx,           Ky=cy-d;
+  var Fx=cx-d*sin60,   Fy=cy+d*cos60;
+  var Sx=cx+d*sin60,   Sy=cy+d*cos60;
+
+  function clickVenn(e){
+    var rect=e.currentTarget.getBoundingClientRect();
+    var mx=(e.clientX-rect.left)/rect.width*sz;
+    var my=(e.clientY-rect.top)/rect.height*sz;
+    var dK=Math.sqrt((mx-Kx)*(mx-Kx)+(my-Ky)*(my-Ky));
+    var dF=Math.sqrt((mx-Fx)*(mx-Fx)+(my-Fy)*(my-Fy));
+    var dS=Math.sqrt((mx-Sx)*(mx-Sx)+(my-Sy)*(my-Sy));
+    var inK=dK<vr,inF=dF<vr,inS=dS<vr;
+    var reg=null;
+    if(inK&&inF&&inS)reg="wirkung";
+    else if(inK&&inF)reg="anlässe";
+    else if(inF&&inS)reg="prozesse";
+    else if(inS&&inK)reg="mittel";
+    else if(inK)reg="kontexte";
+    else if(inF)reg="figuren";
+    else if(inS)reg="strukturen";
+    if(reg){
+      setActiveVenn(function(a){return a===reg?null:reg;});
+      if(props.onVennFilter) props.onVennFilter(reg);
+      e.stopPropagation();
+    }
+  }
+  var vennDesc=activeVenn?(VENN_REGIONS.find(function(r){return r.id===activeVenn;})||{}).desc:null;
+  var vennLabel=activeVenn?(VENN_REGIONS.find(function(r){return r.id===activeVenn;})||{}).label:null;
+
+  return(
+    <div onClick={function(){setActiveVenn(null);}}>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:P.mid,fontFamily:"Georgia,serif",marginBottom:4,padding:"0 2px"}}>
+        <span>⟳ Sphären für den Sinn</span>
+        <span>Felder zum Machen ↓</span>
+      </div>
+
+      <svg width="100%" viewBox={"0 0 "+sz+" "+sz}
+        style={{display:"block",maxWidth:sz,margin:"0 auto",cursor:"pointer"}}
+        onClick={clickVenn}>
+        <defs>
+          {/* Sphere bands */}
+          {SPHERES.map(function(s){return [
+            <path key={"at"+s.id} id={"at-"+s.id} d={arcT(s.rOuter-10)}/>,
+            <path key={"ab"+s.id} id={"ab-"+s.id} d={arcB(s.rInner+10)}/>,
+          ];})}
+          {/*
+            Venn circle label arcs — r=134, inside each circle's non-overlapping zone:
+            vK: top of Kontexte circle (K at 320,255) → standard top arc
+            vF: lower-left of Figuren circle (F at 263.7,352.5)
+                arc from 60° to 240° CW, midpoint at 150° = (147.7, 419.5)
+            vS: lower-right of Strukturen circle (S at 376.3,352.5)
+                arc from 300° to 120° CW, midpoint at 30° = (492.3, 419.5)
+            Together these form an equilateral triangle of label positions.
+          */}
+          <path id="vK" d="M 186,255 A 134,134 0 0,1 454,255"/>
+          <path id="vF" d="M 196.7,236.5 A 134,134 0 0,0 330.7,468.5"/>
+          <path id="vS" d="M 309.3,468.5 A 134,134 0 0,0 443.3,236.5"/>
+        </defs>
+
+        {/* Band fills */}
+        <circle cx={cx} cy={cy} r={308} fill={"#3a9e8c14"}/>
+        <circle cx={cx} cy={cy} r={283} fill={"#d4a84b18"}/>
+        <circle cx={cx} cy={cy} r={258} fill={"#e0806a22"}/>
+        <circle cx={cx} cy={cy} r={233} fill={P.cream}/>
+
+        {/* Sphere bands */}
+        {SPHERES.map(function(s){
+          var act=props.activeSphere===s.id;
+          return(
+            <g key={s.id} onClick={function(e){e.stopPropagation();props.onSphere(s.id);}} style={{cursor:"pointer"}}>
+              {act&&<circle cx={cx} cy={cy} r={Math.round((s.rOuter+s.rInner)/2)}
+                fill="none" stroke={s.color} strokeWidth={s.rOuter-s.rInner-4} strokeOpacity={0.12}/>}
+              <circle cx={cx} cy={cy} r={s.rOuter} fill="none"
+                stroke={s.color} strokeWidth={act?2.5:1.5} strokeOpacity={act?1:0.6}/>
+              <circle cx={cx} cy={cy} r={s.rInner} fill="none"
+                stroke={s.color} strokeWidth={act?1.5:0.8} strokeOpacity={act?0.7:0.35}
+                strokeDasharray="5,4"/>
+              <text textAnchor="middle" fontFamily="Georgia,serif"
+                fontSize={act?10:9.5} fill={s.color}
+                fontWeight={act?"bold":"normal"} opacity={act?1:0.9}>
+                <textPath href={"#at-"+s.id} startOffset="50%">{s.oLabel}</textPath>
+              </text>
+              <text textAnchor="middle" fontFamily="Georgia,serif"
+                fontSize={act?9.5:9} fill={s.color}
+                fontWeight={act?"bold":"normal"} opacity={act?0.9:0.78}>
+                <textPath href={"#ab-"+s.id} startOffset="50%">{s.iLabel}</textPath>
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Venn circles */}
+        <circle cx={Kx} cy={Ky} r={vr}
+          fill={"#3a9e8c"+(activeVenn==="kontexte"||(props.activeVennFilter==="kontexte")?"40":"18")}
+          stroke="#3a9e8c" strokeWidth={(activeVenn==="kontexte"||(props.activeVennFilter==="kontexte"))?2.5:1.5} strokeOpacity={0.7}/>
+        <circle cx={Fx} cy={Fy} r={vr}
+          fill={"#d46878"+(activeVenn==="figuren"||(props.activeVennFilter==="figuren")?"40":"18")}
+          stroke="#d46878" strokeWidth={(activeVenn==="figuren"||(props.activeVennFilter==="figuren"))?2.5:1.5} strokeOpacity={0.7}/>
+        <circle cx={Sx} cy={Sy} r={vr}
+          fill={"#9a70c8"+(activeVenn==="strukturen"||(props.activeVennFilter==="strukturen")?"40":"18")}
+          stroke="#9a70c8" strokeWidth={(activeVenn==="strukturen"||(props.activeVennFilter==="strukturen"))?2.5:1.5} strokeOpacity={0.7}/>
+
+        {/* Main circle labels — curved inside each circle's outer (non-overlapping) zone */}
+        <text textAnchor="middle" fontFamily="Georgia,serif" fontSize={13} fill="#2a7265" fontWeight="bold">
+          <textPath href="#vK" startOffset="50%">Kontexte / Inhalte / Fragen</textPath>
+        </text>
+        <text textAnchor="middle" fontFamily="Georgia,serif" fontSize={13.5} fill="#8a2838" fontWeight="bold">
+          <textPath href="#vF" startOffset="50%">Figuren</textPath>
+        </text>
+        <text textAnchor="middle" fontFamily="Georgia,serif" fontSize={13} fill="#5a40a0" fontWeight="bold">
+          <textPath href="#vS" startOffset="50%">Strukturen / Systeme</textPath>
+        </text>
+
+        {/*
+          Intersection labels — equilateral triangle, R=115 from center:
+          Anlässe  (KF-only, away from S): (220, 263) — dS=180 > vr ✓
+          Prozesse (FS-only, away from K): (320, 435) — dK=180 > vr ✓
+          Mittel   (SK-only, away from F): (420, 263) — dF=180 > vr ✓
+          All sides ≈ 199px → equilateral
+        */}
+        <text x={206} y={248} textAnchor="middle" fontSize={10.5} fontFamily="Georgia,serif" fill={P.dark}
+          fontWeight={activeVenn==="anlässe"?"bold":"normal"} opacity={activeVenn==="anlässe"?1:0.65}>Anlässe &amp;</text>
+        <text x={206} y={262} textAnchor="middle" fontSize={10.5} fontFamily="Georgia,serif" fill={P.dark}
+          fontWeight={activeVenn==="anlässe"?"bold":"normal"} opacity={activeVenn==="anlässe"?1:0.65}>Motivationen</text>
+
+        <text x={320} y={445} textAnchor="middle" fontSize={10.5} fontFamily="Georgia,serif" fill={P.dark}
+          fontWeight={activeVenn==="prozesse"?"bold":"normal"} opacity={activeVenn==="prozesse"?1:0.65}>Prozesse &amp;</text>
+        <text x={320} y={459} textAnchor="middle" fontSize={10.5} fontFamily="Georgia,serif" fill={P.dark}
+          fontWeight={activeVenn==="prozesse"?"bold":"normal"} opacity={activeVenn==="prozesse"?1:0.65}>Routinen</text>
+
+        <text x={434} y={248} textAnchor="middle" fontSize={10.5} fontFamily="Georgia,serif" fill={P.dark}
+          fontWeight={activeVenn==="mittel"?"bold":"normal"} opacity={activeVenn==="mittel"?1:0.65}>Mittel &amp;</text>
+        <text x={434} y={262} textAnchor="middle" fontSize={10.5} fontFamily="Georgia,serif" fill={P.dark}
+          fontWeight={activeVenn==="mittel"?"bold":"normal"} opacity={activeVenn==="mittel"?1:0.65}>Werkzeuge</text>
+
+        {/* Wirkung — triple center */}
+        <text x={cx} y={cy+8} textAnchor="middle" fontSize={15} fontFamily="Georgia,serif"
+          fill={(activeVenn==="wirkung"||(props.activeVennFilter==="wirkung"))?P.teal:P.dark}
+          fontWeight="bold" opacity={(activeVenn==="wirkung"||(props.activeVennFilter==="wirkung"))?1:0.82}>Wirkung</text>
+      </svg>
+
+      {vennDesc&&(
+        <div style={{background:P.white,border:"1px solid "+P.teal+"50",borderRadius:6,padding:"8px 12px",margin:"2px 0 6px",fontSize:12,color:P.dark,lineHeight:1.5}}>
+          <strong style={{color:P.teal}}>{vennLabel}</strong><br/>
+          <span style={{color:P.mid,fontStyle:"italic"}}>{vennDesc}</span>
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",margin:"6px 0 4px"}}>
+        {SPHERES.map(function(s){var act=props.activeSphere===s.id;return(
+          <button key={s.id} onClick={function(){props.onSphere(s.id);}}
+            style={{background:act?s.pale:P.white,color:s.color,border:"1px solid "+(act?s.color:s.color+"50"),borderRadius:12,padding:"3px 9px",fontSize:10,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+            {act?"✓ ":""}{s.iLabel.split(" ·")[0]} / {s.oLabel.split(" ·")[0]}
+          </button>
+        );})}
+      </div>
+
+      <div style={{borderTop:"2px dashed "+P.teal+"45",paddingTop:10,marginTop:4,background:"linear-gradient(to bottom,"+P.tealPale+"25,transparent)",padding:"10px 10px 12px",borderRadius:"0 0 8px 8px"}}>
+        <div style={{color:P.teal,fontSize:10,fontFamily:"Georgia,serif",marginBottom:7,textAlign:"center",letterSpacing:1,textTransform:"uppercase"}}>↑ Felder zum Machen · als Linse klicken</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:4,justifyContent:"center"}}>
+          {FELDER.map(function(f){var act=props.activeFelder===f;return(
+            <button key={f} onClick={function(){props.onFelder(f);}}
+              style={{background:act?P.teal:P.white,color:act?P.white:P.tealDim,border:"1px solid "+(act?P.teal:P.teal+"35"),borderRadius:13,padding:"4px 10px",fontSize:11,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+              {f}
+            </button>
+          );})}
+        </div>
+      </div>
+
+      {(props.activeSphere||props.activeFelder)&&(
+        <div style={{textAlign:"center",marginTop:10,color:P.teal,fontSize:13,fontFamily:"Georgia,serif"}}>
+          <strong>{props.count}</strong> passende Episoden &nbsp;
+          <button onClick={function(){props.onSphere(null);props.onFelder(null);if(props.onVennFilter)props.onVennFilter(null);}} style={{background:"none",border:"1px solid "+P.teal,borderRadius:10,padding:"2px 8px",color:P.teal,fontSize:11,cursor:"pointer"}}>✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+function Chip(p){return <button onClick={p.onClick} style={{background:p.active?p.color+"28":P.white,color:p.active?p.color:P.mid,border:"1px solid "+(p.active?p.color:P.creamDim),borderRadius:14,padding:"3px 9px",fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>{p.label}</button>;}
+function GraphFilterPanel(props){
+  var f=props.filters,[showAdv,setShowAdv]=useState(false);
+  var hasAdv=f.region.length>0||f.hemisphere.length>0||f.generation.length>0||f.gender.length>0||f.alphaRange.length>0;
+  var hasAny=f.types.length>0||f.sphere||hasAdv;
+  function cycleAlpha(){props.onChange("alphaMode",f.alphaMode===null?"vorname":f.alphaMode==="vorname"?"nachname":null);if(f.alphaMode==="nachname")props.onChange("alphaRange",[]);}
+  function toggle(k,v){props.onChange(k,v);}function isA(k,v){return (f[k]||[]).indexOf(v)>=0;}
+  return(<div style={{background:P.white,border:"1px solid "+P.creamDim,borderRadius:8,padding:"10px 14px",marginBottom:12}}>
+    <div style={{display:"flex",flexWrap:"wrap",gap:5,alignItems:"center",marginBottom:7}}>
+      <span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Typ</span>
+      {[["guest","🎙 Gäste"],["frankly","💬 Frankly"],["roundtable","🔄 Roundtables"]].map(function(t){return <Chip key={t[0]} label={t[1]} active={isA("types",t[0])} color={P.teal} onClick={function(){toggle("types",t[0]);}}/>;  })}
+      <div style={{marginLeft:"auto",display:"flex",gap:5}}>
+        <button onClick={function(){setShowAdv(function(v){return !v;});}} style={{background:hasAdv?P.goldPale:P.cream,color:hasAdv?P.gold:P.mid,border:"1px solid "+(hasAdv?P.gold:P.creamDim),borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>{showAdv?"↑ Weniger":"↓ Mehr"}{hasAdv?" ●":""}</button>
+        {hasAny&&<button onClick={props.onResetFilters} style={{background:P.cream,color:P.mid,border:"1px solid "+P.creamDim,borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>✕</button>}
+        <button onClick={props.onResetLayout} style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"50",borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>⟳ Layout</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginTop:6}}>
+        <FilterModeToggle mode={props.filterMode} onChange={props.onFilterMode}/>
+      </div>
+    </div>
+    <div style={{display:"flex",flexWrap:"wrap",gap:4,alignItems:"center"}}>
+      <span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Sphäre</span>
+      {SPHERES.map(function(s){return <Chip key={s.id} label={s.iLabel.split(" ·")[0]} active={f.sphere===s.id} color={s.color} onClick={function(){props.onChange("sphere",f.sphere===s.id?null:s.id);}}/>;  })}
+    </div>
+    {showAdv&&(<div style={{borderTop:"1px solid "+P.creamDim,paddingTop:10,marginTop:10,display:"flex",flexDirection:"column",gap:7}}>
+      <div style={{display:"flex",flexWrap:"wrap",gap:5,alignItems:"center"}}>
+        <span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Alphabet</span>
+        <button onClick={cycleAlpha} style={{background:f.alphaMode?P.goldPale:P.cream,color:f.alphaMode?P.gold:P.light,border:"1px solid "+(f.alphaMode?P.gold:P.creamDim),borderRadius:10,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>{f.alphaMode===null?"aus":f.alphaMode==="vorname"?"Vorname":"Nachname"}</button>
+        {ALPHA_RANGES.map(function(r){return <Chip key={r} label={r} active={isA("alphaRange",r)} color={P.gold} onClick={function(){toggle("alphaRange",r);if(f.alphaMode===null)props.onChange("alphaMode","vorname");}}/>;  })}
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:4,alignItems:"center"}}><span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Kontinent</span>{REGIONS.map(function(r){return <Chip key={r.id} label={r.label} active={isA("region",r.id)} color="#5aaa6e" onClick={function(){toggle("region",r.id);}}/>;  })}</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:4,alignItems:"center"}}><span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Hemisphäre</span>{HEMISPHERES.map(function(h){return <Chip key={h.id} label={h.label} active={isA("hemisphere",h.id)} color={h.id==="nord"?"#7cb9c8":"#c87c50"} onClick={function(){toggle("hemisphere",h.id);}}/>;  })}</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:4,alignItems:"center"}}><span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Generation</span>{GENERATIONS.map(function(g){return <Chip key={g.id} label={g.label} active={isA("generation",g.id)} color="#d46878" onClick={function(){toggle("generation",g.id);}}/>;  })}</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:4,alignItems:"center"}}><span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Gender</span>{GENDERS.map(function(g){return <Chip key={g.id} label={g.label} active={isA("gender",g.id)} color="#9a70c8" onClick={function(){toggle("gender",g.id);}}/>;  })}</div>
+    </div>)}
+  </div>);
+}
+function applyGraphFilters(eps,f,mode){
+  mode=mode||"all";
+  // Build per-episode filter functions
+  function matches(ep){
+    var fns=[];
+    if(f.sphere) fns.push(ep.spheres.indexOf(f.sphere)>=0);
+    var isG=ep.type==="guest";
+    if(f.types.length>0) fns.push(f.types.indexOf(ep.type)>=0);
+    if(f.alphaRange.length>0&&f.alphaMode&&isG){var parts=ep.guest.split(" ");var word=f.alphaMode==="nachname"?parts[parts.length-1]:parts[0];fns.push(f.alphaRange.some(function(r){return letterInRange((word||"")[0],r);}));}
+    if(f.region.length>0&&isG&&ep.region) fns.push(f.region.indexOf(ep.region)>=0);
+    if(f.hemisphere.length>0&&isG&&ep.hemisphere) fns.push(f.hemisphere.indexOf(ep.hemisphere)>=0);
+    if(f.generation.length>0&&isG&&ep.generation) fns.push(f.generation.indexOf(ep.generation)>=0);
+    if(f.gender.length>0&&isG&&ep.gender) fns.push(f.gender.indexOf(ep.gender)>=0);
+    return fns;
+  }
+  var hasFilters=f.types.length>0||f.sphere||f.alphaRange.length>0||f.region.length>0||f.hemisphere.length>0||f.generation.length>0||f.gender.length>0;
+  if(!hasFilters) return eps;
+  if(mode==="all") return eps.filter(function(ep){var r=matches(ep);return r.length===0||r.every(Boolean);});
+  if(mode==="any") return eps.filter(function(ep){var r=matches(ep);return r.some(Boolean);});
+  // score
+  return eps.map(function(ep){var r=matches(ep);return{ep:ep,s:r.filter(Boolean).length};}).filter(function(x){return x.s>0;}).sort(function(a,b){return b.s-a.s;}).map(function(x){return x.ep;});
+}
+
+function LinkedText(props){var text=props.text,onEpClick=props.onEpClick;if(!text)return null;var patterns=[];EPISODES.forEach(function(ep){if(ep.guest&&ep.guest!=="Reality Roundtable"&&ep.guest!=="Nate Hagens")patterns.push({match:ep.guest,ep:ep});if(ep.num){patterns.push({match:"Ep "+ep.num,ep:ep});patterns.push({match:"Episode "+ep.num,ep:ep});}});patterns.sort(function(a,b){return b.match.length-a.match.length;});function parseSegs(para){var segs=[{type:"t",content:para}],used={};patterns.forEach(function(p){var key=p.match.toLowerCase();if(used[key])return;used[key]=true;var re=new RegExp("("+escReg(p.match)+")","gi"),next=[];segs.forEach(function(s){if(s.type!=="t"){next.push(s);return;}s.content.split(re).forEach(function(part){if(!part)return;next.push(part.match(new RegExp("^"+escReg(p.match)+"$","i"))?{type:"link",content:part,ep:p.ep}:{type:"t",content:part});});});segs=next;});return segs;}return(<div>{text.split("\n\n").map(function(para,pi){if(!para.trim())return null;var segs=parseSegs(para);return(<p key={pi} style={{margin:"0 0 12px",lineHeight:1.8}}>{segs.map(function(seg,si){if(seg.type==="link")return <button key={si} onClick={function(){onEpClick(seg.ep);}} style={{background:"none",border:"none",color:sc(seg.ep.spheres[0]),textDecoration:"underline dotted",cursor:"pointer",fontFamily:"inherit",fontSize:"inherit",padding:0,fontWeight:"bold"}}>{seg.content}</button>;return <span key={si}>{seg.content}</span>;})}</p>);})}</div>);}
+
+function EpCard(props){var ep=props.ep,col=sc(ep.spheres[0]),pal=sp(ep.spheres[0]);return(<div style={{background:props.active?pal:P.white,border:"1px solid "+(props.active?col+"70":P.creamDim),borderLeft:"4px solid "+col,borderRadius:6,padding:"10px 14px",marginBottom:6,cursor:"pointer"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}} onClick={function(){props.onClick(ep);}}><div style={{flex:1}}><span style={{color:col,fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:14}}>{ep.type==="guest"?ep.guest:ep.title.substring(0,44)+"…"}</span><span style={{color:P.light,fontSize:10,marginLeft:8}}>{TL[ep.type]} Ep {ep.num}</span>{ep.type==="guest"&&<div style={{color:P.mid,fontSize:11}}>{ep.role}</div>}<div style={{color:P.dark,fontSize:12,marginTop:2}}>{ep.title.substring(0,65)}…</div></div><button onClick={function(e){e.stopPropagation();if(props.onBookmark)props.onBookmark(ep);}} style={{background:"none",border:"none",fontSize:15,cursor:"pointer",opacity:props.bookmarked?1:0.3,padding:"0 4px"}}>🔖</button></div>{ep.quote&&<div style={{color:P.mid,fontSize:11,fontStyle:"italic",marginTop:6,borderLeft:"2px solid "+col+"40",paddingLeft:8}} onClick={function(){props.onClick(ep);}}>"{ep.quote}"</div>}<div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:6}} onClick={function(){props.onClick(ep);}}>{ep.spheres.slice(0,2).map(function(sid){var s=SPHERES.find(function(x){return x.id===sid;});return s?<span key={sid} style={{background:s.pale,color:s.color,fontSize:9,padding:"2px 5px",borderRadius:10}}>{s.iLabel.split(" ·")[0].split(" ")[0]}</span>:null;})}{ep.felder.slice(0,2).map(function(f){return <span key={f} style={{background:P.tealPale,color:P.tealDim,fontSize:9,padding:"1px 5px",borderRadius:8}}>{f}</span>;})}</div></div>);}
+
+function describeConnection(ep, other) {
+  var reasons = [];
+  var sharedS = ep.spheres.filter(function(s){return other.spheres.indexOf(s)>=0;});
+  var sharedF = ep.felder.filter(function(f){return other.felder.indexOf(f)>=0;});
+  var sharedV = (ep.vennFields||[]).filter(function(v){return (other.vennFields||[]).indexOf(v)>=0;});
+
+  var sLabels = {
+    "charakter-werte":"Werte & Charakter",
+    "naturkultur-ideen":"Natur & Ideen",
+    "bias-fühlen":"Fühlen & Praxis"
+  };
+  if(sharedS.length>0) reasons.push(sharedS.map(function(s){return sLabels[s]||s;}).join(", "));
+  if(sharedF.length>0) reasons.push(sharedF.slice(0,2).join(", "));
+  if(sharedV.length>0 && reasons.length===0) reasons.push(sharedV.slice(0,2).join(" & "));
+  return reasons.slice(0,2).join(" · ") || "thematische Nähe";
+}
+
+function DetailPanel(props){var ep=props.ep,col=sc(ep.spheres[0]),pal=sp(ep.spheres[0]);var connected=EPISODES.filter(function(o){if(epId(o)===epId(ep))return false;return ep.spheres.filter(function(s){return o.spheres.indexOf(s)>=0;}).length+ep.felder.filter(function(f){return o.felder.indexOf(f)>=0;}).length>=2;}).slice(0,5);var gL={boomer:"Boomer",genx:"Gen X",millennial:"Millennial",genz:"Gen Z"};var rL={eu:"Europa",na:"Nordamerika",la:"Lateinamerika",as:"Asien",af:"Afrika",oz:"Ozeanien"};var hL={nord:"Glob. Norden",süd:"Glob. Süden"};var geL={w:"♀",m:"♂",nb:"⚧",div:"⚥"};return(<div style={{background:pal,border:"1px solid "+col+"40",borderRadius:8,padding:18,position:"sticky",top:10}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{color:col,fontFamily:"Georgia,serif",fontSize:15,fontWeight:"bold"}}>{ep.type==="guest"?ep.guest:ep.title.substring(0,45)+"…"}</div><button onClick={props.onClose} style={{background:"none",border:"none",color:P.mid,cursor:"pointer",fontSize:18}}>×</button></div><div style={{color:P.mid,fontSize:11}}>{TL[ep.type]} Ep {ep.num} · {ep.role}</div>{ep.type==="guest"&&<div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>{ep.gender&&<span style={{background:"#e8daf8",color:"#9a70c8",fontSize:9,padding:"2px 6px",borderRadius:10}}>{geL[ep.gender]||ep.gender}</span>}{ep.generation&&<span style={{background:"#f0d0d8",color:"#d46878",fontSize:9,padding:"2px 6px",borderRadius:10}}>{gL[ep.generation]||ep.generation}</span>}{ep.region&&<span style={{background:"#d8f0de",color:"#5aaa6e",fontSize:9,padding:"2px 6px",borderRadius:10}}>{rL[ep.region]||ep.region}</span>}{ep.hemisphere&&<span style={{background:ep.hemisphere==="süd"?"#fde8d8":"#d0ece7",color:ep.hemisphere==="süd"?"#c87c50":P.teal,fontSize:9,padding:"2px 6px",borderRadius:10}}>{hL[ep.hemisphere]||ep.hemisphere}</span>}</div>}<div style={{color:P.dark,fontSize:13,marginTop:8,lineHeight:1.5}}>{ep.title}</div>{(function(){
+      var hasDE = !!ep.quote;
+      var hasEN = !!ep.quote_en;
+      if(!hasDE && !hasEN) return null;
+      var [expanded, setExpanded] = useState(false);
+      var mainQuote = ep.quote || ep.quote_en;
+      var altQuote  = ep.quote && ep.quote_en && ep.quote !== ep.quote_en ? ep.quote_en : null;
+      return(
+        <div style={{margin:"10px 0",borderLeft:"3px solid "+col,paddingLeft:10}}>
+          <div style={{color:P.mid,fontStyle:"italic",fontSize:12,lineHeight:1.6}}>"{mainQuote}"</div>
+          {altQuote&&!expanded&&(
+            <button onClick={function(){setExpanded(true);}} style={{background:"none",border:"none",color:col,fontSize:10,cursor:"pointer",padding:"2px 0",fontStyle:"normal"}}>
+              + EN Original anzeigen
+            </button>
+          )}
+          {altQuote&&expanded&&(
+            <div>
+              <div style={{color:P.mid,fontStyle:"italic",fontSize:11,marginTop:6,opacity:0.8,lineHeight:1.5}}>"{altQuote}"</div>
+              <button onClick={function(){setExpanded(false);}} style={{background:"none",border:"none",color:P.light,fontSize:10,cursor:"pointer",padding:"2px 0"}}>↑ weniger</button>
+            </div>
+          )}
+        </div>
+      );
+    })()}<button onClick={function(){if(props.onBookmark)props.onBookmark(ep);}} style={{background:props.bookmarked?col:P.creamDim,color:P.white,border:"none",borderRadius:6,padding:"6px 12px",fontSize:12,cursor:"pointer",marginTop:8}}>{props.bookmarked?"🔖 In Merkliste":"🔖 Zur Merkliste"}</button><div style={{marginTop:12}}><div style={{color:P.light,fontSize:9,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Sphären</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{ep.spheres.map(function(sid){var s=SPHERES.find(function(x){return x.id===sid;});return s?<span key={sid} style={{background:s.pale,color:s.color,fontSize:10,padding:"2px 8px",borderRadius:12}}>{s.iLabel.split(" ·")[0]} / {s.oLabel.split(" ·")[0]}</span>:null;})}</div></div><div style={{marginTop:8}}><div style={{color:P.light,fontSize:9,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Felder</div><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{ep.felder.map(function(f){return <span key={f} style={{background:P.tealPale,color:P.tealDim,fontSize:10,padding:"2px 7px",borderRadius:10}}>{f}</span>;})}</div></div>{connected.length>0&&<div style={{marginTop:10}}>
+      <div style={{color:P.light,fontSize:9,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Resonante Einträge</div>
+      {connected.map(function(c){return(
+        <div key={epId(c)} style={{padding:"5px 0",borderBottom:"1px solid "+P.creamDim}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{color:sc(c.spheres[0]),fontSize:11,fontWeight:"bold",cursor:"pointer",flex:1}}
+              onClick={function(){if(props.onNavEp)props.onNavEp(c);}}>
+              {c.type==="guest"?c.guest:c.title.substring(0,30)+"…"}
+              <span style={{color:P.mid,fontSize:10,fontWeight:"normal"}}> {TL[c.type]}</span>
+            </div>
+            <button onClick={function(){if(props.onSelect)props.onSelect(c);}}
+              title="Steckbrief direkt öffnen"
+              style={{background:"none",border:"1px solid "+P.creamDim,borderRadius:4,
+                color:P.light,cursor:"pointer",fontSize:11,padding:"1px 7px",marginLeft:4}}>
+              →
+            </button>
+          </div>
+          <div style={{color:P.light,fontSize:10,fontStyle:"italic"}}>↔ {describeConnection(ep,c)}</div>
+        </div>
+      );})}
+    </div>}<div style={{marginTop:10,paddingTop:10,borderTop:"1px solid "+col+"20",display:"flex",gap:12}}>{ep.yt&&<a href={"https:"+"//"+"youtu.be/"+ep.yt} target="_blank" rel="noreferrer" style={{color:col,fontSize:11}}>▶ YouTube ↗</a>}<a href={"https:"+"//"+"www.thegreatsimplification.com"+ep.url} target="_blank" rel="noreferrer" style={{color:P.teal,fontSize:11}}>→ TGS ↗</a></div></div>);}
+
+function Graph(props){var ref=useRef(null);var [dims,setDims]=useState({w:680,h:440});useEffect(function(){var el=ref.current&&ref.current.parentElement;if(!el)return;var ro=new ResizeObserver(function(e){var w=e[0].contentRect.width;setDims({w:w,h:Math.max(360,Math.min(480,w*0.62))});});ro.observe(el);return function(){ro.disconnect();};},[]);useEffect(function(){if(!ref.current)return;var eps=props.eps,w=dims.w,h=dims.h;var svg=d3.select(ref.current);svg.selectAll("*").remove();var nodes=eps.map(function(ep){return{id:epId(ep),ep:ep,r:ep.type==="guest"?9:7};});var links=[];for(var i=0;i<eps.length;i++){for(var j=i+1;j<eps.length;j++){var a=eps[i],b=eps[j];var ss=a.spheres.filter(function(s){return b.spheres.indexOf(s)>=0;}).length,sf=a.felder.filter(function(f){return b.felder.indexOf(f)>=0;}).length;if(ss*2+sf>=2)links.push({source:epId(a),target:epId(b),str:ss*2+sf,col:sc(a.spheres[0])});}}var ctr={};SPHERES.forEach(function(s,i){var angles=[Math.PI*1.5,Math.PI*0.8,Math.PI*0.15];ctr[s.id]={x:w/2+Math.cos(angles[i])*w*0.3,y:h/2+Math.sin(angles[i])*h*0.35};});var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d){return d.id;}).distance(55).strength(0.25)).force("charge",d3.forceManyBody().strength(-150)).force("center",d3.forceCenter(w/2,h/2)).force("collision",d3.forceCollide(function(d){return d.r+7;})).force("cluster",function(alpha){nodes.forEach(function(n){var c=ctr[n.ep.spheres[0]];if(c){n.vx-=(n.x-c.x)*alpha*0.08;n.vy-=(n.y-c.y)*alpha*0.08;}});});var bg=svg.append("g");SPHERES.forEach(function(s){var c=ctr[s.id];if(!c)return;bg.append("text").attr("x",c.x).attr("y",c.y).attr("text-anchor","middle").attr("font-size",16).attr("font-family","Georgia,serif").attr("fill",s.color).attr("opacity",0.1).attr("font-weight","bold").text(s.iLabel.split(" ·")[0]);});var lEl=svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke",function(d){return d.col;}).attr("stroke-opacity",function(d){return Math.min(0.4,d.str*0.08);}).attr("stroke-width",function(d){return Math.min(2.5,d.str*0.3);});var nEl=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("cursor","pointer").call(d3.drag().on("start",function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on("drag",function(e,d){d.fx=e.x;d.fy=e.y;}).on("end",function(e,d){if(!e.active)sim.alphaTarget(0);})).on("click",function(e,d){e.stopPropagation();props.onSelect(d.ep);});nEl.append("circle").attr("r",function(d){return d.r;}).attr("fill",function(d){return sc(d.ep.spheres[0])+"bb";}).attr("stroke",function(d){return sc(d.ep.spheres[0]);}).attr("stroke-width",function(d){return props.selected&&epId(d.ep)===epId(props.selected)?3:1.5;}).attr("stroke-dasharray",function(d){return d.ep.type==="frankly"?"3,2":d.ep.type==="roundtable"?"5,2":"none";});nEl.append("text").text(function(d){return d.ep.type==="guest"?d.ep.guest.split(" ").pop():TL[d.ep.type]+(d.ep.num||"");}).attr("font-size",7).attr("font-family","Georgia,serif").attr("fill",P.dark).attr("text-anchor","middle").attr("dy",function(d){return d.r+10;});sim.on("tick",function(){lEl.attr("x1",function(d){return d.source.x;}).attr("y1",function(d){return d.source.y;}).attr("x2",function(d){return d.target.x;}).attr("y2",function(d){return d.target.y;});nEl.attr("transform",function(d){return "translate("+Math.max(20,Math.min(w-20,d.x))+","+Math.max(20,Math.min(h-20,d.y))+")";});});return function(){sim.stop();};},[props.eps,dims,props.selected]);return <svg ref={ref} width={dims.w} height={dims.h} style={{display:"block",width:"100%"}} onClick={function(){props.onSelect(null);}}/>;}
+
+function FilterModeToggle(props) {
+  var modes=[
+    {id:"all",   label:"∩ Alle",  title:"Zeigt nur Einträge die ALLE aktiven Filter erfüllen"},
+    {id:"any",   label:"∪ Mind. 1",title:"Zeigt Einträge die MINDESTENS EINEN Filter erfüllen"},
+    {id:"score", label:"↓ Score", title:"Sortiert nach Anzahl erfüllter Filter (die meisten zuerst)"},
+  ];
+  return(
+    <div style={{display:"flex",gap:2,background:P.creamDim,borderRadius:10,padding:2}}>
+      {modes.map(function(m){var act=props.mode===m.id;return(
+        <button key={m.id} onClick={function(){props.onChange(m.id);}} title={m.title}
+          style={{background:act?P.white:"transparent",color:act?P.teal:P.light,
+            border:"none",borderRadius:8,padding:"3px 9px",fontSize:10,cursor:"pointer",
+            fontWeight:act?"bold":"normal",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+          {m.label}
+        </button>
+      );})}
+    </div>
+  );
+}
+
+var SEARCH_TAGS = [
+  {id:"anlässe",   label:"Anlässe & Motivationen", color:"#5aaa6e"},
+  {id:"prozesse",  label:"Prozesse & Routinen",    color:"#7cb9c8"},
+  {id:"mittel",    label:"Mittel & Werkzeuge",     color:"#c8a44a"},
+  {id:"wirkung",   label:"Wirkung",                color:"#2c2820"},
+  {id:"kontexte",  label:"Kontexte / Inhalte",     color:"#3a9e8c"},
+  {id:"figuren",   label:"Figuren",                color:"#d46878"},
+  {id:"strukturen",label:"Strukturen / Systeme",   color:"#9a70c8"},
+];
+
+function textScore(ep, words) {
+  if (!words || words.length === 0) return 0;
+  var score = 0;
+  var searchable = [ep.guest||"",ep.title||"",ep.role||"",ep.quote||"",(ep.keywords||[]).join(" "),(ep.felder||[]).join(" ")].join(" ").toLowerCase();
+  words.forEach(function(w){
+    if(searchable.indexOf(w)>=0) score+=2;
+    if((ep.guest||"").toLowerCase().indexOf(w)>=0) score+=3;
+    if((ep.title||"").toLowerCase().indexOf(w)>=0) score+=2;
+    if((ep.quote||"").toLowerCase().indexOf(w)>=0) score+=1;
+    (ep.keywords||[]).forEach(function(k){if(k.toLowerCase().indexOf(w)>=0) score+=2;});
+  });
+  var allMatch=words.every(function(w){return searchable.indexOf(w)>=0;});
+  if(allMatch&&words.length>1) score+=5;
+  return score;
+}
+
+function buildFilterFns(vennList, sphere, felder, gender, generation, hemisphere, words) {
+  var fns = [];
+  // Each venn tag = one filter function
+  vennList.forEach(function(v){
+    fns.push({label:"venn:"+v, fn:function(e){return (e.vennFields||[]).indexOf(v)>=0;}});
+  });
+  if(sphere) fns.push({label:"sphere", fn:function(e){return e.spheres.indexOf(sphere)>=0;}});
+  if(felder) fns.push({label:"felder", fn:function(e){return e.felder.indexOf(felder)>=0;}});
+  if(gender) fns.push({label:"gender", fn:function(e){return e.gender===gender;}});
+  if(generation) fns.push({label:"gen",  fn:function(e){return e.generation===generation;}});
+  if(hemisphere) fns.push({label:"hem",  fn:function(e){return e.hemisphere===hemisphere;}});
+  if(words&&words.length>0) fns.push({label:"text", fn:function(e){return textScore(e,words)>0;}});
+  return fns;
+}
+
+function highlight(text, words) {
+  if (!text || !words || words.length === 0) return text;
+  var result = text;
+  words.forEach(function(w) {
+    if (w.length < 3) return;
+    var re = new RegExp('(' + escReg(w) + ')', 'gi');
+    result = result.replace(re, '§§$1§§');
+  });
+  var parts = result.split('§§');
+  return parts.map(function(p, i) {
+    var isMatch = i % 2 === 1;
+    return isMatch
+      ? <mark key={i} style={{background:"#f5e8c8",color:P.dark,borderRadius:2,padding:"0 1px"}}>{p}</mark>
+      : p;
+  });
+}
+
+function SmartSearch(props) {
+  var [q, setQ]               = useState("");
+  var [vennFilters, setVF]    = useState([]);
+  var [sphereFilter, setSF]   = useState(null);
+  var [felderFilter, setFF]   = useState(null);
+  var [genderF, setGF]        = useState(null);
+  var [genF, setGenF]         = useState(null);
+  var [hemF, setHemF]         = useState(null);
+  var [selected, setSel]      = useState(null);
+  var [showMore, setShowMore] = useState(false);
+
+  var fmode = props.filterMode || "all";
+  var words = q.toLowerCase().trim().split(/\s+/).filter(function(w){return w.length>2;});
+  var hasFilters = !!(q.trim() || vennFilters.length>0 || sphereFilter || felderFilter || genderF || genF || hemF);
+
+  // Build one test-function per active filter
+  var fns = [];
+  vennFilters.forEach(function(v){ fns.push(function(e){return (e.vennFields||[]).indexOf(v)>=0;}); });
+  if(sphereFilter) fns.push(function(e){return e.spheres.indexOf(sphereFilter)>=0;});
+  if(felderFilter) fns.push(function(e){return e.felder.indexOf(felderFilter)>=0;});
+  if(genderF)      fns.push(function(e){return e.gender===genderF;});
+  if(genF)         fns.push(function(e){return e.generation===genF;});
+  if(hemF)         fns.push(function(e){return e.hemisphere===hemF;});
+  if(words.length>0) fns.push(function(e){return textScore(e,words)>0;});
+
+  var results;
+  if(!hasFilters) {
+    results = EPISODES.map(function(ep){return{ep:ep,score:ep.num};})
+      .sort(function(a,b){return b.score-a.score;});
+  } else if(fmode==="all") {
+    results = EPISODES
+      .filter(function(ep){return fns.every(function(f){return f(ep);});})
+      .map(function(ep){return{ep:ep,score:textScore(ep,words)};})
+      .sort(function(a,b){return b.score-a.score;});
+  } else if(fmode==="any") {
+    results = EPISODES
+      .filter(function(ep){return fns.some(function(f){return f(ep);});})
+      .map(function(ep){
+        var matched=fns.filter(function(f){return f(ep);}).length;
+        return{ep:ep,score:matched*3+textScore(ep,words)};
+      }).sort(function(a,b){return b.score-a.score;});
+  } else {
+    // score mode: all that match anything, sorted by # matches
+    results = EPISODES
+      .map(function(ep){
+        var matched=fns.filter(function(f){return f(ep);}).length;
+        return{ep:ep,score:matched*3+textScore(ep,words)};
+      }).filter(function(r){return r.score>0;})
+      .sort(function(a,b){return b.score-a.score;});
+  }
+
+  function clearAll(){setQ("");setVF([]);setSF(null);setFF(null);setGF(null);setGenF(null);setHemF(null);}
+
+  return (
+    <div style={{display:"grid",gridTemplateColumns:selected?"1fr 300px":"1fr",gap:20,alignItems:"start"}}>
+      <div>
+        {/* Search input */}
+        <div style={{position:"relative",marginBottom:10}}>
+          <input value={q} onChange={function(e){setQ(e.target.value);setSel(null);}}
+            placeholder="Suche: Person, Thema, Stichwort, Zitat…"
+            style={{width:"100%",background:P.white,color:P.dark,border:"1px solid "+P.creamDim,
+              borderRadius:8,padding:"10px 36px 10px 14px",fontSize:13,fontFamily:"Georgia,serif",
+              outline:"none",boxSizing:"border-box"}}/>
+          {q&&<button onClick={function(){setQ("");}} style={{position:"absolute",right:10,top:"50%",
+            transform:"translateY(-50%)",background:"none",border:"none",color:P.light,cursor:"pointer",fontSize:16}}>×</button>}
+        </div>
+
+        {/* Venn filter chips */}
+        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
+          {SEARCH_TAGS.map(function(t){
+            var act=vennFilters.indexOf(t.id)>=0;
+            return <button key={t.id} onClick={function(){setVF(function(p){return toggleArr(p,t.id);});}}
+              style={{background:act?t.color+"28":P.white,color:act?t.color:P.mid,
+                border:"1px solid "+(act?t.color:P.creamDim),borderRadius:14,padding:"3px 9px",fontSize:11,cursor:"pointer"}}>
+              {act?"✓ ":""}{t.label}
+            </button>;
+          })}
+        </div>
+
+        {/* Toolbar: filter-mode toggle + counts */}
+        <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8,flexWrap:"wrap"}}>
+          <FilterModeToggle mode={fmode} onChange={props.onFilterMode||function(){}}/>
+          <button onClick={function(){setShowMore(function(v){return !v;});}}
+            style={{background:P.cream,color:P.mid,border:"1px solid "+P.creamDim,
+              borderRadius:12,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>
+            {showMore?"↑ Weniger":"↓ Mehr Filter"}
+          </button>
+          {hasFilters&&<button onClick={clearAll}
+            style={{background:P.cream,color:P.mid,border:"1px solid "+P.creamDim,
+              borderRadius:12,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>✕ Alles</button>}
+          <span style={{color:P.light,fontSize:11,marginLeft:"auto"}}>{results.length} Episoden</span>
+        </div>
+
+        {/* Extended filters */}
+        {showMore&&<div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10,
+          background:P.white,border:"1px solid "+P.creamDim,borderRadius:8,padding:"10px 12px"}}>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Sphäre</span>
+            {SPHERES.map(function(s){return <button key={s.id} onClick={function(){setSF(sphereFilter===s.id?null:s.id);}}
+              style={{background:sphereFilter===s.id?s.pale:P.white,color:s.color,border:"1px solid "+s.color+"60",
+                borderRadius:12,padding:"3px 8px",fontSize:10,cursor:"pointer"}}>
+              {s.iLabel.split(" ·")[0]}
+            </button>;})}
+          </div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Hemisphäre</span>
+            {[["nord","🌐 Norden"],["süd","🌍 Süden"]].map(function(h){return(
+              <button key={h[0]} onClick={function(){setHemF(hemF===h[0]?null:h[0]);}}
+                style={{background:hemF===h[0]?P.tealPale:P.white,color:P.teal,border:"1px solid "+P.teal+"50",borderRadius:12,padding:"3px 8px",fontSize:10,cursor:"pointer"}}>{h[1]}</button>
+            );})}
+          </div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Generation</span>
+            {[["boomer","Boomer"],["genx","Gen X"],["millennial","Millennial"],["genz","Gen Z"]].map(function(g){return(
+              <button key={g[0]} onClick={function(){setGenF(genF===g[0]?null:g[0]);}}
+                style={{background:genF===g[0]?"#f0d0d880":P.white,color:"#d46878",border:"1px solid #d4687860",borderRadius:12,padding:"3px 8px",fontSize:10,cursor:"pointer"}}>{g[1]}</button>
+            );})}
+          </div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Gender</span>
+            {[["w","♀"],["m","♂"],["nb","⚧"],["div","⚥"]].map(function(g){return(
+              <button key={g[0]} onClick={function(){setGF(genderF===g[0]?null:g[0]);}}
+                style={{background:genderF===g[0]?"#e8daf8":P.white,color:"#9a70c8",border:"1px solid #9a70c860",borderRadius:12,padding:"3px 8px",fontSize:10,cursor:"pointer"}}>{g[1]}</button>
+            );})}
+          </div>
+        </div>}
+
+        {/* Results list */}
+        <div style={{maxHeight:520,overflowY:"auto",paddingRight:4}}>
+          {results.map(function(r){
+            var ep=r.ep; var col=sc(ep.spheres[0]); var pal=sp(ep.spheres[0]);
+            var isAct=selected&&epId(selected)===epId(ep);
+            return(
+              <div key={epId(ep)} onClick={function(){setSel(isAct?null:ep);}}
+                style={{background:isAct?pal:P.white,border:"1px solid "+(isAct?col+"70":P.creamDim),
+                  borderLeft:"4px solid "+col,borderRadius:6,padding:"10px 14px",marginBottom:6,cursor:"pointer"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div style={{flex:1}}>
+                    <span style={{color:col,fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:14}}>
+                      {ep.type==="guest"?ep.guest:ep.title.substring(0,44)+"…"}
+                    </span>
+                    <span style={{color:P.light,fontSize:10,marginLeft:8}}>{TL[ep.type]} Ep {ep.num}</span>
+                    {ep.type==="guest"&&<div style={{color:P.mid,fontSize:11}}>{ep.role}</div>}
+                    <div style={{color:P.dark,fontSize:12,marginTop:2}}>{ep.title.substring(0,70)}…</div>
+                  </div>
+                  <button onClick={function(e){e.stopPropagation();if(props.onBookmark)props.onBookmark(ep);}}
+                    style={{background:"none",border:"none",fontSize:15,cursor:"pointer",
+                      opacity:props.merkliste&&props.merkliste.indexOf(epId(ep))>=0?1:0.3,padding:"0 4px"}}>🔖</button>
+                </div>
+                {ep.quote&&<div style={{color:P.mid,fontSize:11,fontStyle:"italic",marginTop:5,
+                  borderLeft:"2px solid "+col+"40",paddingLeft:8}}>{ep.quote.substring(0,120)}…</div>}
+                <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:5}}>
+                  {(ep.vennFields||[]).slice(0,3).map(function(v){
+                    var t=SEARCH_TAGS.find(function(x){return x.id===v;});
+                    return t?<span key={v} style={{background:t.color+"18",color:t.color,
+                      fontSize:9,padding:"1px 6px",borderRadius:10}}>{t.label}</span>:null;
+                  })}
+                  {ep.felder.slice(0,2).map(function(f){return(
+                    <span key={f} style={{background:P.tealPale,color:P.tealDim,fontSize:9,padding:"1px 5px",borderRadius:8}}>{f}</span>
+                  );})}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {selected&&(function(){
+      var idx2=results.findIndex(function(r){return epId(r.ep)===epId(selected);});
+      return <DetailPanel ep={selected} onClose={function(){setSel(null);}}
+        bookmarked={props.merkliste&&props.merkliste.indexOf(epId(selected))>=0}
+        onBookmark={props.onBookmark} onNavEp={props.onNavEp} onSelect={setSel}
+        position={idx2>=0?(idx2+1)+" / "+results.length:null}
+        onPrev={idx2>0?function(){setSel(results[idx2-1].ep);}:null}
+        onNext={idx2<results.length-1?function(){setSel(results[idx2+1].ep);}:null}/>;
+    })()}
+    </div>
+  );
+}
+
+function AIKompass(props){var [q,setQ]=useState(""),[resp,setResp]=useState(""),[loading,setLoading]=useState(false),[hist,setHist]=useState([]),[saveTitle,setSaveTitle]=useState(""),[saved,setSaved]=useState(false),[peekEp,setPeekEp]=useState(null);var PRESETS=["Welche Episoden verbinden 'Belonging' mit konkreter Praxis?","Zeig Ambivalenzen zwischen Technikoptimismus und Kollapsdenken","Was passt zum 'größeren Wir' in hamburg.global?","Verbindungen zwischen Donut-Ökonomie und indigenem Wissen","Episoden für Trauer, Handlungsfähigkeit und emotionale Arbeit"];var ctx=EPISODES.map(function(e){return e.type+" Ep"+(e.num||"?")+" | "+(e.type==="guest"?e.guest:e.title.substring(0,40))+" | Sphären:"+e.spheres+" | Felder:"+e.felder.slice(0,3)+(e.quote?" | \""+e.quote.substring(0,50)+"\"":"");}).join("\n");async function ask(txt){if(!txt.trim()||loading)return;setLoading(true);setResp("");setSaved(false);setSaveTitle(txt.substring(0,40));try{var r=await fetch("https:"+"//"+"api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1000,system:"Du bist Wissensnavigator für hamburg.global und The Great Simplification.\n\nSinn-&-Machen-Kompass:\nSphäre 1 (äußerste): Charakter (Belonging↔Othering) / Werte & Haltung (How)\nSphäre 2 (mittlere): Natur- & Kulturverständnis / Ideen & Vorstellung (Why)\nSphäre 3 (innerste): Bias & Sinne / Fühlen & Machen (Who)\n\nFelder zum Machen (Venn): Kontexte/Inhalte/Fragen · Figuren · Strukturen/Systeme\nÜberschneidungen: Anlässe&Motivationen · Prozesse&Routinen · Mittel&Werkzeuge · Wirkung (Zentrum)\n\nKernfragen: 'größeres Wir' und 'Bedingungen für fürsorglichere Zukünfte'.\n\nDATENBANK:\n"+ctx+"\n\nNenne Gastnamen vollständig. Antworte auf Deutsch. Prose max 300 Wörter.",messages:hist.concat([{role:"user",content:txt}])})});var raw=await r.text();var data;try{data=JSON.parse(raw);}catch(pe){setResp("⚠ Parse-Fehler: "+raw.substring(0,300));setLoading(false);return;}if(data.error){setResp("⚠ API: "+data.error.message);setLoading(false);return;}var t="";if(data.content&&Array.isArray(data.content)){t=data.content.filter(function(c){return c.type==="text";}).map(function(c){return c.text;}).join("\n\n");}if(!t)t="Keine Antwort erhalten.";setResp(t);setHist(function(h){return h.concat([{role:"user",content:txt},{role:"assistant",content:t}]);});}catch(e){setResp("⚠ Fehler: "+e.message);}setLoading(false);}async function doSave(){if(!saveTitle.trim()||!resp)return;await props.onSave({id:String(Date.now()),title:saveTitle,query:q,response:resp,savedAt:new Date().toISOString()});setSaved(true);}return(<div><div style={{display:"grid",gridTemplateColumns:peekEp?"1fr 300px":"1fr",gap:20,alignItems:"start"}}><div style={{maxWidth:680}}><div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:16,marginBottom:6}}>🌿 KI-Kompass — {EPISODES.length} Episoden</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}}>{PRESETS.map(function(p){return <button key={p} onClick={function(){setQ(p);ask(p);}} style={{background:P.tealPale,color:P.tealDim,border:"1px solid rgba(58,158,140,0.25)",borderRadius:14,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>{p.substring(0,46)}…</button>;})}</div><div style={{display:"flex",gap:8,marginBottom:14}}><textarea value={q} onChange={function(e){setQ(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask(q);}}} placeholder="Deine Frage an den Kompost… (Enter)" rows={2} style={{flex:1,background:P.white,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"10px 12px",fontSize:13,fontFamily:"Georgia,serif",resize:"none",outline:"none"}}/><button onClick={function(){ask(q);}} disabled={loading||!q.trim()} style={{background:loading?P.creamDim:P.teal,color:P.white,border:"none",borderRadius:4,padding:"0 16px",cursor:loading?"default":"pointer",fontSize:14}}>{loading?"…":"→"}</button></div>{(resp||loading)&&<div style={{background:P.white,border:"1px solid "+P.creamDim,borderRadius:6,padding:"16px 20px"}}>{loading?<div style={{color:P.teal,fontSize:13}}>Durchsuche Kompost…</div>:(<div><LinkedText text={resp} onEpClick={function(ep){setPeekEp(ep);}}/>{!saved&&<div style={{marginTop:14,paddingTop:12,borderTop:"1px solid "+P.creamDim,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><input value={saveTitle} onChange={function(e){setSaveTitle(e.target.value);}} placeholder="Titel…" style={{flex:1,minWidth:160,background:P.cream,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"6px 10px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/><button onClick={doSave} style={{background:P.gold,color:P.white,border:"none",borderRadius:4,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>💾 Speichern</button></div>}{saved&&<div style={{color:P.teal,fontSize:12,marginTop:10}}>✓ Gespeichert!</div>}</div>)}</div>}</div>{peekEp&&<div><div style={{color:P.light,fontSize:11,marginBottom:6}}>Episode aus Antwort:</div><DetailPanel ep={peekEp} onClose={function(){setPeekEp(null);}} bookmarked={props.merkliste&&props.merkliste.indexOf(epId(peekEp))>=0} onBookmark={props.onBookmark} onNavEp={function(ep){props.onNavEp(ep);setPeekEp(null);}}/></div>}</div></div>);}
+
+function Merkliste(props){var [sub,setSub]=useState("eps"),[expDisc,setExpDisc]=useState(null);var savedEps=props.merkliste.map(function(id){return EPISODES.find(function(e){return epId(e)===id;});}).filter(Boolean);return(<div style={{maxWidth:700}}><div style={{display:"flex",borderBottom:"1px solid "+P.creamDim,marginBottom:16}}>{[["eps","🔖 Episoden ("+savedEps.length+")"],["disc","💡 Entdeckungen ("+props.discoveries.length+")"]].map(function(t){return <button key={t[0]} onClick={function(){setSub(t[0]);}} style={{background:"transparent",color:sub===t[0]?P.teal:P.mid,border:"none",borderBottom:"2px solid "+(sub===t[0]?P.teal:"transparent"),padding:"8px 16px",cursor:"pointer",fontSize:13,fontFamily:"Georgia,serif"}}>{t[1]}</button>;})}</div>{sub==="eps"&&(savedEps.length===0?<div style={{color:P.light,fontSize:13,padding:20,textAlign:"center"}}>Noch keine Episoden. Klicke das 🔖.</div>:savedEps.map(function(ep){return(<div key={epId(ep)} style={{background:P.white,border:"1px solid "+P.creamDim,borderLeft:"4px solid "+sc(ep.spheres[0]),borderRadius:6,padding:"10px 14px",marginBottom:8,display:"flex",justifyContent:"space-between"}}><div style={{cursor:"pointer",flex:1}} onClick={function(){props.onNavEp(ep);}}><span style={{color:sc(ep.spheres[0]),fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:14}}>{ep.type==="guest"?ep.guest:ep.title.substring(0,44)+"…"}</span><span style={{color:P.light,fontSize:10,marginLeft:8}}>{TL[ep.type]} Ep {ep.num}</span><div style={{color:P.dark,fontSize:12,marginTop:2}}>{ep.title.substring(0,65)}…</div></div><button onClick={function(){props.onRemoveEp(epId(ep));}} style={{background:"none",border:"none",color:P.light,cursor:"pointer",fontSize:13}}>✕</button></div>);}))}{sub==="disc"&&(props.discoveries.length===0?<div style={{color:P.light,fontSize:13,padding:20,textAlign:"center"}}>Noch keine Entdeckungen.</div>:props.discoveries.map(function(d){var isExp=expDisc===d.id;return(<div key={d.id} style={{background:P.white,border:"1px solid "+P.creamDim,borderLeft:"4px solid "+P.gold,borderRadius:6,padding:"14px 16px",marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{color:P.gold,fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:14}}>{d.title}</div><div style={{display:"flex",gap:6}}><button onClick={function(){props.onShare(d);}} style={{background:P.tealPale,color:P.tealDim,border:"1px solid rgba(58,158,140,0.3)",borderRadius:8,padding:"3px 8px",fontSize:11,cursor:"pointer"}}>📌 Teilen</button><button onClick={function(){props.onRemoveDisc(d.id);}} style={{background:"none",border:"none",color:P.light,cursor:"pointer",fontSize:13}}>✕</button></div></div><div style={{color:P.mid,fontSize:11,marginBottom:8,fontStyle:"italic"}}>Frage: {d.query}</div>{isExp?<LinkedText text={d.response} onEpClick={function(ep){props.onNavEp(ep);}}/>:<div style={{color:P.dark,fontSize:12,lineHeight:1.6}}>{d.response.substring(0,200)}…</div>}<div style={{display:"flex",justifyContent:"space-between",marginTop:8}}><button onClick={function(){setExpDisc(isExp?null:d.id);}} style={{background:"none",border:"none",color:P.teal,fontSize:11,cursor:"pointer",padding:0}}>{isExp?"↑ Weniger":"↓ Vollständig mit Links"}</button><span style={{color:P.light,fontSize:10}}>{new Date(d.savedAt).toLocaleDateString("de-DE")}</span></div></div>);}))}</div>);}
+function Gemeinschaft(props){var [exp,setExp]=useState(null);if(props.pins.length===0)return(<div style={{maxWidth:600,margin:"0 auto",textAlign:"center",padding:40}}><div style={{fontSize:32,marginBottom:12}}>📌</div><div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:17,marginBottom:8}}>Die Pinnwand ist noch leer</div><div style={{color:P.mid,fontSize:13,lineHeight:1.6}}>Teile deine KI-Entdeckungen aus der Merkliste.</div></div>);return(<div style={{maxWidth:700}}><div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:16,marginBottom:4}}>📌 Netzwerk-Pinnwand</div><div style={{color:P.mid,fontSize:12,marginBottom:16}}>{props.pins.length} Beiträge</div>{props.pins.slice().reverse().map(function(pin){var isExp=exp===pin.id;return(<div key={pin.id} style={{background:P.white,border:"1px solid "+P.creamDim,borderLeft:"4px solid "+P.teal,borderRadius:6,padding:"14px 16px",marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><div><span style={{color:P.teal,fontFamily:"Georgia,serif",fontWeight:"bold",fontSize:14}}>{pin.title}</span><span style={{color:P.light,fontSize:11,marginLeft:8}}>von {pin.authorName}</span></div><span style={{color:P.light,fontSize:10}}>{new Date(pin.createdAt).toLocaleDateString("de-DE")}</span></div><div style={{color:P.mid,fontSize:11,marginBottom:8,fontStyle:"italic"}}>Frage: {pin.query}</div>{isExp?<LinkedText text={pin.response} onEpClick={function(ep){props.onNavEp(ep);}}/>:<div style={{color:P.dark,fontSize:12,lineHeight:1.6}}>{pin.response.substring(0,220)}…</div>}<button onClick={function(){setExp(isExp?null:pin.id);}} style={{background:"none",border:"none",color:P.teal,fontSize:11,cursor:"pointer",padding:"4px 0",marginTop:4}}>{isExp?"↑ Weniger":"↓ Vollständig mit Links"}</button></div>);})}</div>);}
+
+var FRAGMENT_TYPES = [
+  {id:"frage",    icon:"💬", label:"Frage",              color:"#3a9e8c"},
+  {id:"konzept",  icon:"🧩", label:"Konzept",            color:"#d4a84b"},
+  {id:"figur",    icon:"🌀", label:"Figur / Wesen",      color:"#d46878"},
+  {id:"beispiel", icon:"📖", label:"Geschichte / Beispiel",color:"#9a70c8"},
+  {id:"praxis",   icon:"🛠", label:"Praxisform",         color:"#5aaa6e"},
+];
+
+// Placeholder fragments extracted from existing episodes
+var FRAGMENTS = [
+  {id:"f1",type:"konzept",title:"Hospicing Modernity",
+   desc:"Vanessa Andreottis Konzept: die sterbende Moderne begleiten statt reparieren – wie ein Hospiz, das Würde im Sterben ermöglicht.",
+   keywords:["Moderne","Kollaps","Fürsorge","Übergang"],
+   episodes:["guestw0cZuHAjTmA"],
+   quote_en:"We need to hospice modernity rather than trying to fix it."},
+  {id:"f2",type:"frage",title:"Wenn Demokratie ein Kunstprojekt wäre – wer ist die Kuratorin?",
+   desc:"Bayo Akomolafe & Achille Mbembe: Was würden wir anders sehen, wenn wir Demokratie nicht als Faktum, sondern als kuratorische Entscheidung betrachteten?",
+   keywords:["Demokratie","Dekolonialität","Kuratieren","Fragen"],
+   episodes:["roundtableqU_1uHdUjLU"],
+   quote_en:"If liberal democracy were an art project, who or what would be the curator?"},
+  {id:"f3",type:"figur",title:"Autistische Politik",
+   desc:"Bayo Akomolafes Begriff für eine Politik, die langsamer ist, die Ränder bewohnt, nicht auf Effizienz und Lösungen ausgerichtet ist.",
+   keywords:["Post-Aktivismus","Verlangsamung","Neurodiversität","Politik"],
+   episodes:["guestx5dWvKHwWX8"],
+   quote_en:"Autistic politics: a politics that slows down, lingers in the edges."},
+  {id:"f4",type:"konzept",title:"Belonging without Othering",
+   desc:"john a. powell & Stephen Menendian: Zugehörigkeit die keine Ausgrenzung braucht – ein Framework gegen die Logik des Othering.",
+   keywords:["Belonging","Othering","Inklusion","Gemeinschaft"],
+   episodes:["guestB3S5J6tTjj4"],
+   quote_en:"Can we build belonging without creating an other?"},
+  {id:"f5",type:"frage",title:"Was passiert, wenn Wahlfreiheit sich falsch verhält?",
+   desc:"Bayo Akomolafe hinterfragt die moderne Wahlfreiheit als Grundannahme: Was bleibt, wenn binäres Entscheiden nicht mehr funktioniert?",
+   keywords:["Wahlfreiheit","Moderne","Transformation","Enden"],
+   episodes:["guesttdvu2rn_6d4"],
+   quote_en:"What happens when choice starts misbehaving?"},
+  {id:"f6",type:"konzept",title:"Radikale Hoffnung",
+   desc:"Roman Krznaric: Handeln für Systemwandel auch wenn die Chancen gering sind – aus historischen Beispielen destilliert.",
+   keywords:["Hoffnung","Systemwandel","Geschichte","Handeln"],
+   episodes:["guestfXTbcDgg9ek"],
+   quote_en:"We should always act as if change were possible."},
+];
+
+function Glossar() {
+  var [activeType, setActiveType] = useState(null);
+  var [search, setSearch] = useState("");
+  var filtered = FRAGMENTS.filter(function(f){
+    if(activeType && f.type !== activeType) return false;
+    if(search.trim()){var q=search.toLowerCase();return f.title.toLowerCase().indexOf(q)>=0||f.desc.toLowerCase().indexOf(q)>=0;}
+    return true;
+  });
+  return(<div>
+    <div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:16,marginBottom:8}}>📚 Glossar & Fragmente
+      <span style={{color:P.light,fontSize:11,marginLeft:8}}>{filtered.length} Fragmente</span>
+    </div>
+    <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="Fragment suchen…"
+      style={{width:"100%",background:P.white,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:6,padding:"8px 12px",fontSize:13,fontFamily:"Georgia,serif",outline:"none",boxSizing:"border-box",marginBottom:10}}/>
+    <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
+      {FRAGMENT_TYPES.map(function(t){var act=activeType===t.id;return(
+        <button key={t.id} onClick={function(){setActiveType(act?null:t.id);}}
+          style={{background:act?t.color+"28":P.white,color:act?t.color:P.mid,border:"1px solid "+(act?t.color:P.creamDim),borderRadius:14,padding:"3px 9px",fontSize:11,cursor:"pointer"}}>
+          {t.icon} {t.label}
+        </button>);
+      })}
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:10}}>
+      {filtered.map(function(f){
+        var ft=FRAGMENT_TYPES.find(function(t){return t.id===f.type;});
+        return(<div key={f.id} style={{background:P.white,border:"1px solid "+P.creamDim,borderTop:"3px solid "+(ft?ft.color:P.teal),borderRadius:8,padding:"12px 14px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+            <span style={{fontSize:16}}>{ft?ft.icon:"📄"}</span>
+            <span style={{color:ft?ft.color:P.teal,fontSize:10,background:(ft?ft.color:P.teal)+"18",padding:"2px 7px",borderRadius:10}}>{ft?ft.label:f.type}</span>
+          </div>
+          <div style={{color:P.dark,fontFamily:"Georgia,serif",fontSize:13,fontWeight:"bold",marginBottom:5}}>{f.title}</div>
+          <div style={{color:P.mid,fontSize:11,lineHeight:1.5}}>{f.desc}</div>
+          {f.quote_en&&<div style={{color:P.mid,fontSize:11,fontStyle:"italic",marginTop:8,borderLeft:"2px solid "+(ft?ft.color:P.teal),paddingLeft:8}}>"{f.quote_en}"</div>}
+          <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:8}}>{f.keywords.map(function(k){return <span key={k} style={{background:P.creamDim,color:P.mid,fontSize:9,padding:"2px 6px",borderRadius:8}}>{k}</span>;})}</div>
+        </div>);
+      })}
+    </div>
+    {FRAGMENTS.length===0&&<div style={{color:P.mid,fontSize:12,padding:20,textAlign:"center",background:P.tealPale,borderRadius:8,marginTop:10}}>
+      💡 Fragmente werden automatisch aus Transkripten extrahiert wenn neue Einträge verarbeitet werden.
+    </div>}
+  </div>);
+}
+
+
+
+// Mount app
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+
+  </script>
+
+  <script>
+    // Show app once React has mounted
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() {
+        var loading = document.getElementById('loading');
+        var root = document.getElementById('root');
+        if (root && root.children.length > 0) {
+          loading.style.display = 'none';
+          root.style.display = 'block';
+        }
+      }, 2000);
+    });
+  </script>
+
+  <!-- Content Notice Footer -->
+  <div id="content-notice" style="background:#2c2820;color:#9a8e80;padding:12px 20px;
+    font-family:Georgia,serif;font-size:11px;line-height:1.6;border-top:2px solid #3a9e8c;">
+    <div style="max-width:900px;margin:0 auto;display:flex;justify-content:space-between;
+      flex-wrap:wrap;gap:8px;align-items:center;">
+      <span>
+        🌱 <strong style="color:#f6f0e6">Humus-Kompass</strong> ·
+        Ein Projekt von <a href="https://hamburg.global" target="_blank"
+          style="color:#3a9e8c;text-decoration:none;">hamburg.global</a> ·
+        Code: <a href="LICENSE" style="color:#3a9e8c;text-decoration:none;">MIT-Lizenz</a>
+      </span>
+      <span>
+        Alle verlinkten Inhalte © der jeweiligen Urheber:innen ·
+        Kurzzitate gemäß §&nbsp;51&nbsp;UrhG ·
+        <a href="NOTICE.md" target="_blank"
+          style="color:#3a9e8c;text-decoration:none;">Inhaltshinweis</a>
+      </span>
+    </div>
+  </div>
+
+</body>
+</html>
