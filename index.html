@@ -1,35 +1,20 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>🌱 Humus-Kompass · hamburg.global</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <style>* {box-sizing:border-box;margin:0;padding:0;} body {background:#f6f0e6;font-family:Georgia,serif;} #root {min-height:100vh;}</style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>🌱 Humus-Kompass · hamburg.global</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#f6f0e6;font-family:Georgia,serif;}#root{min-height:100vh;}</style>
 </head>
 <body>
-
-  <script>
-    (function(){
-      var PW_KEY = "hk-auth";
-      var PW = "humus2026";
-      function check(){
-        if(sessionStorage.getItem(PW_KEY)==="ok") return true;
-        var pw = prompt("🌱 Humus-Kompass\nBitte Passwort eingeben:");
-        if(pw===PW){ sessionStorage.setItem(PW_KEY,"ok"); return true; }
-        document.body.innerHTML = "<div style=\"display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Georgia;color:#3a9e8c;font-size:18px;\">Zugang verweigert.</div>";
-        return false;
-      }
-      if(!check()){ throw new Error("auth"); }
-    })();
-  </script>
-
-  <div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#3a9e8c;font-size:18px;font-family:Georgia,serif;">🌱 Humus-Kompass lädt…</div></div>
-  <script type="text/babel" data-presets="react">
-    const { useState, useEffect, useRef } = React;
+<script>(function(){var K="hk-auth",P="humus2026";if(sessionStorage.getItem(K)!=="ok"){var p=prompt("🌱 Humus-Kompass\nPasswort:");if(p===P)sessionStorage.setItem(K,"ok");else{document.body.innerHTML="<div style='display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Georgia;color:#3a9e8c;font-size:18px;'>Zugang verweigert.</div>";throw new Error("auth");}}if(!sessionStorage.getItem("hk-apikey")){var k=prompt("🌱 KI-Kompass\nAnthropic API-Key eingeben:\n(leer lassen = KI deaktiviert)");if(k&&k.trim().startsWith("sk-ant"))sessionStorage.setItem("hk-apikey",k.trim());}})();</script>
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#3a9e8c;font-size:18px;font-family:Georgia,serif;">🌱 Humus-Kompass lädt…</div></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
 
 const P = {
   cream:"#f6f0e6", creamDim:"#e8e0d0",
@@ -435,14 +420,35 @@ function Graph(props){var ref=useRef(null);var [dims,setDims]=useState({w:680,h:
       .style("pointer-events","none").style("opacity","0").style("z-index","1000")
       .style("max-width","240px").style("line-height","1.5").style("box-shadow","0 2px 8px rgba(0,0,0,0.3)");
   }
-  var eps=props.eps,w=dims.w,h=dims.h;var svg=d3.select(ref.current);svg.selectAll("*").remove();var nodes=eps.map(function(ep){return{id:epId(ep),ep:ep,r:ep.type==="guest"?12:9};});var links=[];for(var i=0;i<eps.length;i++){for(var j=i+1;j<eps.length;j++){var a=eps[i],b=eps[j];var ss=a.spheres.filter(function(s){return b.spheres.indexOf(s)>=0;}).length,sf=a.felder.filter(function(f){return b.felder.indexOf(f)>=0;}).length;if(ss*2+sf>=2)links.push({source:epId(a),target:epId(b),str:ss*2+sf,col:sc(a.spheres[0])});}}var ctr={};SPHERES.forEach(function(s,i){var angles=[Math.PI*1.5,Math.PI*0.8,Math.PI*0.15];ctr[s.id]={x:w/2+Math.cos(angles[i])*w*0.42,y:h/2+Math.sin(angles[i])*h*0.46};});// Organic initial positions: cluster center + gaussian-like spread
+  var eps=props.eps,w=dims.w,h=dims.h;var svg=d3.select(ref.current);svg.selectAll("*").remove();var nodes=eps.map(function(ep){return{id:epId(ep),ep:ep,r:ep.type==="guest"?12:9};});var links=[];for(var i=0;i<eps.length;i++){for(var j=i+1;j<eps.length;j++){var a=eps[i],b=eps[j];var ss=a.spheres.filter(function(s){return b.spheres.indexOf(s)>=0;}).length,sf=a.felder.filter(function(f){return b.felder.indexOf(f)>=0;}).length;if(ss*2+sf>=2)links.push({source:epId(a),target:epId(b),str:ss*2+sf,col:sc(a.spheres[0])});}}var ctr={};SPHERES.forEach(function(s,i){var angles=[Math.PI*1.5,Math.PI*0.8,Math.PI*0.15];ctr[s.id]={x:w/2+Math.cos(angles[i])*w*0.42,y:h/2+Math.sin(angles[i])*h*0.46};});// Find top-5 most connected nodes → place as pentagon, pre-pinned
+var connectionCount = {};
+links.forEach(function(l){
+  connectionCount[l.source] = (connectionCount[l.source]||0)+1;
+  connectionCount[l.target] = (connectionCount[l.target]||0)+1;
+});
+var sorted = nodes.slice().sort(function(a,b){
+  return (connectionCount[b.id]||0)-(connectionCount[a.id]||0);
+});
+var pentagonNodes = sorted.slice(0,5);
+var pentagonR = Math.min(w,h)*0.38;
+pentagonNodes.forEach(function(n,i){
+  var angle = (i/5)*Math.PI*2 - Math.PI/2; // start at top
+  n.x = w/2 + Math.cos(angle)*pentagonR;
+  n.y = h/2 + Math.sin(angle)*pentagonR;
+  n.fx = n.x; // pre-pin
+  n.fy = n.y;
+});
+var pentagonIds = pentagonNodes.map(function(n){return n.id;});
+
+// Remaining nodes: organic spread in center area
 nodes.forEach(function(n){
+  if(pentagonIds.indexOf(n.id)>=0) return;
   var sphere = n.ep.spheres&&n.ep.spheres[0];
   var c = ctr[sphere] || {x:w/2, y:h/2};
   var angle = Math.random()*Math.PI*2;
-  var dist  = (0.3 + Math.random()*0.7) * Math.min(w,h) * 0.28;
-  n.x = c.x + Math.cos(angle)*dist + (Math.random()-0.5)*60;
-  n.y = c.y + Math.sin(angle)*dist + (Math.random()-0.5)*60;
+  var dist  = (0.1 + Math.random()*0.5) * Math.min(w,h) * 0.28;
+  n.x = c.x + Math.cos(angle)*dist + (Math.random()-0.5)*40;
+  n.y = c.y + Math.sin(angle)*dist + (Math.random()-0.5)*40;
 });
 var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d){return d.id;}).distance(260).strength(0.06)).force("charge",d3.forceManyBody().strength(-1200).distanceMin(15).distanceMax(800)).force("center",d3.forceCenter(w/2,h/2).strength(0.006)).force("collision",d3.forceCollide(function(d){return d.r+28;}).strength(0.9)).force("cluster",function(alpha){nodes.forEach(function(n){var c=ctr[n.ep.spheres[0]];if(c){n.vx-=(n.x-c.x)*alpha*0.018;n.vy-=(n.y-c.y)*alpha*0.018;}});});var bg=svg.append("g");SPHERES.forEach(function(s){var c=ctr[s.id];if(!c)return;bg.append("text").attr("x",c.x).attr("y",c.y).attr("text-anchor","middle").attr("font-size",16).attr("font-family","Georgia,serif").attr("fill",s.color).attr("opacity",0.1).attr("font-weight","bold").text(s.iLabel.split(" ·")[0]);});var lEl=svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke",function(d){return d.col;}).attr("stroke-opacity",function(d){return Math.min(0.13,d.str*0.03);}).attr("stroke-width",function(d){return Math.min(2.5,d.str*0.3);});var nEl=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("class","node-group").attr("cursor","pointer").call(d3.drag().on("start",function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on("drag",function(e,d){d.fx=e.x;d.fy=e.y;}).on("end",function(e,d){if(!e.active)sim.alphaTarget(0);})).on("click",function(e,d){e.stopPropagation();props.onSelect(d.ep);});nEl.append("circle").attr("r",function(d){return d.r;})
       .on("mouseover",function(event,d){
@@ -469,7 +475,16 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
     .attr("text-anchor","middle")
     .attr("dy",function(d){return d.r+11;})
     .attr("font-weight","bold")
-    .attr("pointer-events","none");sim.on("tick",function(){lEl.attr("x1",function(d){return d.source.x;}).attr("y1",function(d){return d.source.y;}).attr("x2",function(d){return d.target.x;}).attr("y2",function(d){return d.target.y;});nEl.attr("transform",function(d){return "translate("+Math.max(d.r+8,Math.min(w-d.r-8,d.x))+","+Math.max(d.r+16,Math.min(h-d.r-16,d.y))+")";});});return function(){sim.stop();};
+    .attr("pointer-events","none");sim.on("tick",function(){lEl.attr("x1",function(d){return d.source.x;}).attr("y1",function(d){return d.source.y;}).attr("x2",function(d){return d.target.x;}).attr("y2",function(d){return d.target.y;});nEl.attr("transform",function(d){
+      var pad=d.r+12;
+      d.x=Math.max(pad,Math.min(w-pad,d.x));
+      d.y=Math.max(pad+20,Math.min(h-pad,d.y));
+      if(d.fx==null){ // only clamp unfixed nodes
+        if(d.x<=pad||d.x>=w-pad) d.vx*=-0.5;
+        if(d.y<=pad+20||d.y>=h-pad) d.vy*=-0.5;
+      }
+      return "translate("+d.x+","+d.y+")";
+    });});return function(){sim.stop();};
   },[props.eps,dims]);
 
   // Separate effect: highlight selected node without re-building sim
@@ -758,7 +773,7 @@ function SmartSearch(props) {
   );
 }
 
-function AIKompass(props){var [q,setQ]=useState(""),[resp,setResp]=useState(""),[loading,setLoading]=useState(false),[hist,setHist]=useState([]),[saveTitle,setSaveTitle]=useState(""),[saved,setSaved]=useState(false),[peekEp,setPeekEp]=useState(null);var PRESETS=["Welche Episoden verbinden 'Belonging' mit konkreter Praxis?","Zeig Ambivalenzen zwischen Technikoptimismus und Kollapsdenken","Was passt zum 'größeren Wir' in hamburg.global?","Verbindungen zwischen Donut-Ökonomie und indigenem Wissen","Episoden für Trauer, Handlungsfähigkeit und emotionale Arbeit"];var ctx=EPISODES.map(function(e){return e.type+" Ep"+(e.num||"?")+" | "+(e.type==="guest"?e.guest:e.title.substring(0,40))+" | Sphären:"+e.spheres+" | Felder:"+e.felder.slice(0,3)+(e.quote?" | \""+e.quote.substring(0,50)+"\"":"");}).join("\n");async function ask(txt){if(!txt.trim()||loading)return;setLoading(true);setResp("");setSaved(false);setSaveTitle(txt.substring(0,40));try{var r=await fetch("https:"+"//"+"api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1000,system:"Du bist Wissensnavigator für hamburg.global und The Great Simplification.\n\nSinn-&-Machen-Kompass:\nSphäre 1 (äußerste): Charakter (Belonging↔Othering) / Werte & Haltung (How)\nSphäre 2 (mittlere): Natur- & Kulturverständnis / Ideen & Vorstellung (Why)\nSphäre 3 (innerste): Bias & Sinne / Fühlen & Machen (Who)\n\nFelder zum Machen (Venn): Kontexte/Inhalte/Fragen · Figuren · Strukturen/Systeme\nÜberschneidungen: Anlässe&Motivationen · Prozesse&Routinen · Mittel&Werkzeuge · Wirkung (Zentrum)\n\nKernfragen: 'größeres Wir' und 'Bedingungen für fürsorglichere Zukünfte'.\n\nDATENBANK:\n"+ctx+"\n\nNenne Gastnamen vollständig. Antworte auf Deutsch. Prose max 300 Wörter.",messages:hist.concat([{role:"user",content:txt}])})});var raw=await r.text();var data;try{data=JSON.parse(raw);}catch(pe){setResp("⚠ Parse-Fehler: "+raw.substring(0,300));setLoading(false);return;}if(data.error){setResp("⚠ API: "+data.error.message);setLoading(false);return;}var t="";if(data.content&&Array.isArray(data.content)){t=data.content.filter(function(c){return c.type==="text";}).map(function(c){return c.text;}).join("\n\n");}if(!t)t="Keine Antwort erhalten.";setResp(t);setHist(function(h){return h.concat([{role:"user",content:txt},{role:"assistant",content:t}]);});}catch(e){setResp("⚠ Fehler: "+e.message);}setLoading(false);}async function doSave(){if(!saveTitle.trim()||!resp)return;await props.onSave({id:String(Date.now()),title:saveTitle,query:q,response:resp,savedAt:new Date().toISOString()});setSaved(true);}return(<div><div style={{display:"grid",gridTemplateColumns:peekEp?"1fr 300px":"1fr",gap:20,alignItems:"start"}}><div style={{maxWidth:680}}><div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:16,marginBottom:6}}>🌿 KI-Kompass — {EPISODES.length} Episoden</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}}>{PRESETS.map(function(p){return <button key={p} onClick={function(){setQ(p);ask(p);}} style={{background:P.tealPale,color:P.tealDim,border:"1px solid rgba(58,158,140,0.25)",borderRadius:14,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>{p.substring(0,46)}…</button>;})}</div><div style={{display:"flex",gap:8,marginBottom:14}}><textarea value={q} onChange={function(e){setQ(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask(q);}}} placeholder="Deine Frage an den Kompost… (Enter)" rows={2} style={{flex:1,background:P.white,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"10px 12px",fontSize:13,fontFamily:"Georgia,serif",resize:"none",outline:"none"}}/><button onClick={function(){ask(q);}} disabled={loading||!q.trim()} style={{background:loading?P.creamDim:P.teal,color:P.white,border:"none",borderRadius:4,padding:"0 16px",cursor:loading?"default":"pointer",fontSize:14}}>{loading?"…":"→"}</button></div>{(resp||loading)&&<div style={{background:P.white,border:"1px solid "+P.creamDim,borderRadius:6,padding:"16px 20px"}}>{loading?<div style={{color:P.teal,fontSize:13}}>Durchsuche Kompost…</div>:(<div><LinkedText text={resp} onEpClick={function(ep){setPeekEp(ep);}}/>{!saved&&<div style={{marginTop:14,paddingTop:12,borderTop:"1px solid "+P.creamDim,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><input value={saveTitle} onChange={function(e){setSaveTitle(e.target.value);}} placeholder="Titel…" style={{flex:1,minWidth:160,background:P.cream,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"6px 10px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/><button onClick={doSave} style={{background:P.gold,color:P.white,border:"none",borderRadius:4,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>💾 Speichern</button></div>}{saved&&<div style={{color:P.teal,fontSize:12,marginTop:10}}>✓ Gespeichert!</div>}</div>)}</div>}</div>{peekEp&&<div><div style={{color:P.light,fontSize:11,marginBottom:6}}>Episode aus Antwort:</div><DetailPanel ep={peekEp} onClose={function(){setPeekEp(null);}} bookmarked={props.merkliste&&props.merkliste.indexOf(epId(peekEp))>=0} onBookmark={props.onBookmark} onNavEp={function(ep){props.onNavEp(ep);setPeekEp(null);}}/></div>}</div></div>);}
+function AIKompass(props){var [q,setQ]=useState(""),[resp,setResp]=useState(""),[loading,setLoading]=useState(false),[hist,setHist]=useState([]),[saveTitle,setSaveTitle]=useState(""),[saved,setSaved]=useState(false),[peekEp,setPeekEp]=useState(null);var PRESETS=["Welche Episoden verbinden 'Belonging' mit konkreter Praxis?","Zeig Ambivalenzen zwischen Technikoptimismus und Kollapsdenken","Was passt zum 'größeren Wir' in hamburg.global?","Verbindungen zwischen Donut-Ökonomie und indigenem Wissen","Episoden für Trauer, Handlungsfähigkeit und emotionale Arbeit"];var ctx=EPISODES.map(function(e){return e.type+" Ep"+(e.num||"?")+" | "+(e.type==="guest"?e.guest:e.title.substring(0,40))+" | Sphären:"+e.spheres+" | Felder:"+e.felder.slice(0,3)+(e.quote?" | \""+e.quote.substring(0,50)+"\"":"");}).join("\n");async function ask(txt){if(!txt.trim()||loading)return;setLoading(true);setResp("");setSaved(false);setSaveTitle(txt.substring(0,40));try{var r=await fetch("https:"+"//"+"api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":(sessionStorage.getItem("hk-apikey")||""),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1000,system:"Du bist Wissensnavigator für hamburg.global und The Great Simplification.\n\nSinn-&-Machen-Kompass:\nSphäre 1 (äußerste): Charakter (Belonging↔Othering) / Werte & Haltung (How)\nSphäre 2 (mittlere): Natur- & Kulturverständnis / Ideen & Vorstellung (Why)\nSphäre 3 (innerste): Bias & Sinne / Fühlen & Machen (Who)\n\nFelder zum Machen (Venn): Kontexte/Inhalte/Fragen · Figuren · Strukturen/Systeme\nÜberschneidungen: Anlässe&Motivationen · Prozesse&Routinen · Mittel&Werkzeuge · Wirkung (Zentrum)\n\nKernfragen: 'größeres Wir' und 'Bedingungen für fürsorglichere Zukünfte'.\n\nDATENBANK:\n"+ctx+"\n\nNenne Gastnamen vollständig. Antworte auf Deutsch. Prose max 300 Wörter.",messages:hist.concat([{role:"user",content:txt}])})});var raw=await r.text();var data;try{data=JSON.parse(raw);}catch(pe){setResp("⚠ Parse-Fehler: "+raw.substring(0,300));setLoading(false);return;}if(data.error){setResp("⚠ API: "+data.error.message);setLoading(false);return;}var t="";if(data.content&&Array.isArray(data.content)){t=data.content.filter(function(c){return c.type==="text";}).map(function(c){return c.text;}).join("\n\n");}if(!t)t="Keine Antwort erhalten.";setResp(t);setHist(function(h){return h.concat([{role:"user",content:txt},{role:"assistant",content:t}]);});}catch(e){setResp("⚠ Fehler: "+e.message);}setLoading(false);}async function doSave(){if(!saveTitle.trim()||!resp)return;await props.onSave({id:String(Date.now()),title:saveTitle,query:q,response:resp,savedAt:new Date().toISOString()});setSaved(true);}return(<div><div style={{display:"grid",gridTemplateColumns:peekEp?"1fr 300px":"1fr",gap:20,alignItems:"start"}}><div style={{maxWidth:680}}><div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:16,marginBottom:6}}>🌿 KI-Kompass — {EPISODES.length} Episoden</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}}>{PRESETS.map(function(p){return <button key={p} onClick={function(){setQ(p);ask(p);}} style={{background:P.tealPale,color:P.tealDim,border:"1px solid rgba(58,158,140,0.25)",borderRadius:14,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>{p.substring(0,46)}…</button>;})}</div><div style={{display:"flex",gap:8,marginBottom:14}}><textarea value={q} onChange={function(e){setQ(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask(q);}}} placeholder="Deine Frage an den Kompost… (Enter)" rows={2} style={{flex:1,background:P.white,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"10px 12px",fontSize:13,fontFamily:"Georgia,serif",resize:"none",outline:"none"}}/><button onClick={function(){ask(q);}} disabled={loading||!q.trim()} style={{background:loading?P.creamDim:P.teal,color:P.white,border:"none",borderRadius:4,padding:"0 16px",cursor:loading?"default":"pointer",fontSize:14}}>{loading?"…":"→"}</button></div>{(resp||loading)&&<div style={{background:P.white,border:"1px solid "+P.creamDim,borderRadius:6,padding:"16px 20px"}}>{loading?<div style={{color:P.teal,fontSize:13}}>Durchsuche Kompost…</div>:(<div><LinkedText text={resp} onEpClick={function(ep){setPeekEp(ep);}}/>{!saved&&<div style={{marginTop:14,paddingTop:12,borderTop:"1px solid "+P.creamDim,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><input value={saveTitle} onChange={function(e){setSaveTitle(e.target.value);}} placeholder="Titel…" style={{flex:1,minWidth:160,background:P.cream,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"6px 10px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/><button onClick={doSave} style={{background:P.gold,color:P.white,border:"none",borderRadius:4,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>💾 Speichern</button></div>}{saved&&<div style={{color:P.teal,fontSize:12,marginTop:10}}>✓ Gespeichert!</div>}</div>)}</div>}</div>{peekEp&&<div><div style={{color:P.light,fontSize:11,marginBottom:6}}>Episode aus Antwort:</div><DetailPanel ep={peekEp} onClose={function(){setPeekEp(null);}} bookmarked={props.merkliste&&props.merkliste.indexOf(epId(peekEp))>=0} onBookmark={props.onBookmark} onNavEp={function(ep){props.onNavEp(ep);setPeekEp(null);}}/></div>}</div></div>);}
 
 function Merkliste(props){
   var [comments,setComments]   = useState(function(){return loadLS("hk-comments",{});});
@@ -1080,6 +1095,199 @@ function Glossar(props) {
   </div>);
 }
 
+// ─── VOLLTEXT-SUCHE ───────────────────────────────────────────────────────
+function VolltextSuche(props) {
+  var [query, setQuery]     = useState("");
+  var [results, setResults] = useState([]);
+  var [searching, setSearching] = useState(false);
+  var [savePopup, setSavePopup] = useState(null); // {text, epId, x, y}
+
+  // Load transcripts when tab opens
+  useEffect(function(){ props.onLoad && props.onLoad(); }, []);
+
+  function doSearch(q) {
+    if(!q.trim() || !props.transcripts) return;
+    setSearching(true);
+    var hits = [];
+    var qLow = q.toLowerCase();
+    var words = qLow.split(/\s+/).filter(function(w){return w.length>2;});
+
+    Object.keys(props.transcripts).forEach(function(ytId){
+      var tr = props.transcripts[ytId];
+      var text = tr.text || '';
+      var textLow = text.toLowerCase();
+
+      // Find all positions of any word
+      var positions = [];
+      words.forEach(function(w){
+        var pos = 0;
+        while(true){
+          var idx = textLow.indexOf(w, pos);
+          if(idx<0) break;
+          positions.push(idx);
+          pos = idx+1;
+        }
+      });
+
+      if(positions.length===0) return;
+
+      // Deduplicate nearby positions, take top 3 snippets
+      positions.sort(function(a,b){return a-b;});
+      var snippets = [];
+      var lastEnd = -1;
+      positions.forEach(function(pos){
+        if(pos < lastEnd) return;
+        var start = Math.max(0, pos-120);
+        var end   = Math.min(text.length, pos+200);
+        snippets.push({start:start, end:end, text:text.slice(start,end)});
+        lastEnd = end;
+      });
+
+      // Find matching episode
+      var ep = EPISODES.find(function(e){return e.yt===ytId;});
+
+      hits.push({
+        ytId: ytId,
+        ep: ep || null,
+        guest: tr.guest,
+        title: tr.title,
+        matchCount: positions.length,
+        snippets: snippets.slice(0,3),
+      });
+    });
+
+    // Sort by match count
+    hits.sort(function(a,b){return b.matchCount-a.matchCount;});
+    setResults(hits.slice(0,30));
+    setSearching(false);
+  }
+
+  function highlight(text, words) {
+    if(!words||words.length===0) return text;
+    var parts = text.split(new RegExp('('+words.map(function(w){
+      return w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    }).join('|')+')','gi'));
+    return parts.map(function(p,i){
+      var isMatch = words.some(function(w){return p.toLowerCase()===w.toLowerCase();});
+      return isMatch
+        ? <mark key={i} style={{background:"#f5e8c8",color:"#2c2820",borderRadius:2,padding:"0 1px"}}>{p}</mark>
+        : p;
+    });
+  }
+
+  var words = query.toLowerCase().split(/\s+/).filter(function(w){return w.length>2;});
+
+  return(<div>
+    <div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:16,marginBottom:8}}>
+      📜 Volltext-Suche
+      {props.loading&&<span style={{color:P.light,fontSize:11,marginLeft:8}}>Transkripte laden…</span>}
+      {props.transcripts&&<span style={{color:P.light,fontSize:11,marginLeft:8}}>
+        {Object.keys(props.transcripts).length} Transkripte geladen
+      </span>}
+    </div>
+
+    {!props.transcripts&&!props.loading&&<div style={{background:P.tealPale,border:"1px solid "+P.teal+"40",
+      borderRadius:8,padding:"16px 20px",marginBottom:12,color:P.tealDim,fontSize:12}}>
+      ⏳ Transkripte werden geladen… bitte einen Moment warten.
+    </div>}
+
+    <div style={{display:"flex",gap:8,marginBottom:12}}>
+      <input value={query} onChange={function(e){setQuery(e.target.value);}}
+        onKeyDown={function(e){if(e.key==="Enter")doSearch(query);}}
+        placeholder="Volltext suchen… (Enter)"
+        disabled={!props.transcripts}
+        style={{flex:1,background:P.white,color:P.dark,border:"1px solid "+P.creamDim,
+          borderRadius:6,padding:"10px 14px",fontSize:13,fontFamily:"Georgia,serif",
+          outline:"none",opacity:props.transcripts?1:0.5}}/>
+      <button onClick={function(){doSearch(query);}} disabled={!props.transcripts||!query.trim()}
+        style={{background:P.teal,color:P.white,border:"none",borderRadius:6,
+          padding:"10px 18px",fontSize:13,cursor:"pointer",opacity:props.transcripts?1:0.5}}>
+        Suchen
+      </button>
+    </div>
+
+    {results.length>0&&<div style={{color:P.light,fontSize:11,marginBottom:10}}>
+      {results.length} Treffer · Klicke auf eine Textstelle zum Speichern
+    </div>}
+
+    {/* Save popup */}
+    {savePopup&&<div style={{position:"fixed",top:savePopup.y,left:savePopup.x,
+      background:P.dark,color:P.white,borderRadius:8,padding:"8px 4px",
+      zIndex:999,display:"flex",gap:4,boxShadow:"0 4px 16px rgba(0,0,0,0.3)"}}>
+      <button onClick={function(){
+        navigator.clipboard&&navigator.clipboard.writeText(savePopup.text);
+        setSavePopup(null);
+      }} style={{background:"none",border:"none",color:P.white,cursor:"pointer",
+        padding:"4px 8px",fontSize:11,borderRadius:4}}>📋 Kopieren</button>
+      <button onClick={function(){
+        if(savePopup.ep) props.onBookmark(savePopup.ep);
+        setSavePopup(null);
+      }} style={{background:"none",border:"none",color:P.white,cursor:"pointer",
+        padding:"4px 8px",fontSize:11,borderRadius:4}}>🔖 Merkliste</button>
+      <button onClick={function(){setSavePopup(null);}}
+        style={{background:"none",border:"none",color:P.light,cursor:"pointer",
+          padding:"4px 8px",fontSize:14}}>×</button>
+    </div>}
+
+    <div style={{maxHeight:600,overflowY:"auto"}}>
+      {results.map(function(hit){
+        var col = hit.ep ? sc((hit.ep.spheres&&hit.ep.spheres[0])||null) : P.teal;
+        return(<div key={hit.ytId} style={{background:P.white,border:"1px solid "+P.creamDim,
+          borderLeft:"4px solid "+col,borderRadius:6,padding:"12px 14px",marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+            <div>
+              <div style={{color:col,fontFamily:"Georgia,serif",fontSize:14,fontWeight:"bold",cursor:"pointer"}}
+                onClick={function(){if(hit.ep)props.onNavEp(hit.ep);}}>
+                {hit.guest||hit.title}
+              </div>
+              <div style={{color:P.mid,fontSize:11}}>{hit.title.substring(0,70)}</div>
+            </div>
+            <span style={{background:P.creamDim,color:P.mid,fontSize:10,
+              padding:"2px 8px",borderRadius:10,flexShrink:0,marginLeft:8}}>
+              {hit.matchCount} Treffer
+            </span>
+          </div>
+          {hit.snippets.map(function(snip,si){
+            return(<div key={si}
+              onClick={function(e){
+                var sel=window.getSelection();
+                var text=sel&&sel.toString().trim();
+                if(text&&text.length>5){
+                  setSavePopup({text:text,ep:hit.ep,
+                    x:Math.min(e.clientX,window.innerWidth-200),
+                    y:Math.max(e.clientY-60,10)});
+                }
+              }}
+              style={{background:P.cream,borderRadius:4,padding:"8px 10px",
+                marginBottom:6,fontSize:11,lineHeight:1.7,color:P.dark,
+                cursor:"text",userSelect:"text",
+                borderLeft:"2px solid "+col+"40"}}>
+              <span style={{color:P.light,fontSize:9,display:"block",marginBottom:3}}>
+                …Stelle {si+1}…
+              </span>
+              {highlight(snip.text, words)}
+            </div>);
+          })}
+          <div style={{display:"flex",gap:6,marginTop:6}}>
+            {hit.ep&&<button onClick={function(){props.onNavEp(hit.ep);}}
+              style={{background:"none",border:"1px solid "+col+"50",color:col,
+                borderRadius:4,padding:"2px 8px",fontSize:10,cursor:"pointer"}}>
+              → Steckbrief
+            </button>}
+            <a href={"https://youtu.be/"+(hit.yt||hit.ytId)} target="_blank" rel="noreferrer"
+              style={{color:P.light,fontSize:10,padding:"2px 8px",border:"1px solid "+P.creamDim,
+                borderRadius:4,textDecoration:"none"}}>▶ YouTube</a>
+          </div>
+        </div>);
+      })}
+      {results.length===0&&query.trim()&&!searching&&<div style={{color:P.light,fontSize:12,padding:20,textAlign:"center"}}>
+        Keine Treffer in den Transkripten.
+      </div>}
+    </div>
+  </div>);
+}
+
+
 // ─── STORAGE HELPERS ─────────────────────────────────────────────────────
 function loadLS(key, fallback) {
   try { var v=localStorage.getItem(key); return v?JSON.parse(v):fallback; } 
@@ -1091,6 +1299,17 @@ function saveLS(key, val) {
 
 function App(){
   var [merkliste,setMerkliste]=useState(function(){return loadLS("hk-merkliste",[]);});
+  var [transcripts,setTranscripts]=useState(null);
+  var [transcriptsLoading,setTranscriptsLoading]=useState(false);
+
+  function loadTranscripts(){
+    if(transcripts||transcriptsLoading) return;
+    setTranscriptsLoading(true);
+    fetch("transcripts.json")
+      .then(function(r){return r.json();})
+      .then(function(data){setTranscripts(data);setTranscriptsLoading(false);})
+      .catch(function(){setTranscriptsLoading(false);});
+  }
   var [discoveries,setDiscoveries]=useState(function(){return loadLS("hk-discoveries",[]);});
   var [pins,setPins]=useState(function(){return loadLS("hk-pins",[]);});
   var [tab,setTab]=useState("kompass");
@@ -1125,7 +1344,7 @@ function App(){
   var filtered=_fns.length===0?EPISODES:filterMode==="all"?EPISODES.filter(function(e){return _fns.every(function(f){return f(e);});}):filterMode==="any"?EPISODES.filter(function(e){return _fns.some(function(f){return f(e);});}):EPISODES.map(function(e){return{ep:e,s:_fns.filter(function(f){return f(e);}).length};}).filter(function(r){return r.s>0;}).sort(function(a,b){return b.s-a.s;}).map(function(r){return r.ep;});
   var gFiltered=applyGraphFilters(EPISODES,gFilters,filterMode);
   function selToggle(ep){setSelected(function(s){return s&&epId(s)===epId(ep)?null:ep;});}
-  var TABS=[["kompass","🧭 Kompass"],["graph","🕸 Graph"],["suche","🔍 Suche"],["ki","🌿 KI-Kompass"],["smartsuche","🔎 Smart-Suche"],["personen","👥 Personen"],["glossar","📚 Glossar"],["merkliste","🔖 Merkliste"+(merkliste.length>0?" ("+merkliste.length+")":"")],["community","📌 Netzwerk"+(pins.length>0?" ("+pins.length+")":"")]];
+  var TABS=[["kompass","🧭 Kompass"],["graph","🕸 Graph"],["suche","🔍 Suche"],["ki","🌿 KI-Kompass"],["smartsuche","🔎 Smart-Suche"],["volltextsuche","📜 Volltext"],["personen","👥 Personen"],["glossar","📚 Glossar"],["merkliste","🔖 Merkliste"+(merkliste.length>0?" ("+merkliste.length+")":"")],["community","📌 Netzwerk"+(pins.length>0?" ("+pins.length+")":"")]];
   return(<div style={{background:P.cream,color:P.dark,minHeight:"100vh",fontFamily:"Georgia,serif",position:"relative"}}>
     <div style={{background:P.white,borderBottom:"2px solid rgba(58,158,140,0.12)",padding:"12px 20px 0"}}>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
@@ -1245,6 +1464,7 @@ function App(){
         })()}
       </div>)}
       {tab==="ki"&&<AIKompass merkliste={merkliste} onSave={saveDiscovery} onBookmark={toggleBookmark} onNavEp={handleNavEp}/>
+      }{tab==="volltextsuche"&&<VolltextSuche transcripts={transcripts} loading={transcriptsLoading} onLoad={loadTranscripts} onNavEp={handleNavEp} onSaveFragment={function(frag){}} onBookmark={toggleBookmark} merkliste={merkliste}/>
       }{tab==="smartsuche"&&<SmartSearch merkliste={merkliste} onBookmark={toggleBookmark} onNavEp={handleNavEp} filterMode={filterMode} onFilterMode={setFilterMode}/>
       }{tab==="personen"&&<Personen onNavEp={handleNavEp}/>
       }{tab==="glossar"&&<Glossar onNavEp={handleNavEp}/>
@@ -1254,12 +1474,9 @@ function App(){
   </div>);
 }
 
-    const domRoot = ReactDOM.createRoot(document.getElementById('root'));
-    domRoot.render(<App />);
-  </script>
-  <div style="background:#2c2820;color:#9a8e80;padding:10px 20px;font-family:Georgia,serif;font-size:11px;border-top:2px solid #3a9e8c;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-    <span>🌱 <strong style="color:#f6f0e6">Humus-Kompass</strong> · <a href="https://hamburg.global" target="_blank" style="color:#3a9e8c;text-decoration:none;">hamburg.global</a> · MIT-Lizenz</span>
-    <span>Alle Inhalte © der jeweiligen Urheber:innen · §&nbsp;51&nbsp;UrhG · <a href="NOTICE.md" target="_blank" style="color:#3a9e8c;text-decoration:none;">Inhaltshinweis</a></span>
-  </div>
+const domRoot = ReactDOM.createRoot(document.getElementById('root'));
+domRoot.render(<App />);
+</script>
+<div style="background:#2c2820;color:#9a8e80;padding:10px 20px;font-family:Georgia,serif;font-size:11px;border-top:2px solid #3a9e8c;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;"><span>🌱 <strong style="color:#f6f0e6">Humus-Kompass</strong> · <a href="https://hamburg.global" target="_blank" style="color:#3a9e8c;text-decoration:none;">hamburg.global</a> · MIT-Lizenz</span><span>Alle Inhalte © Urheber:innen · §51 UrhG · <a href="NOTICE.md" target="_blank" style="color:#3a9e8c;text-decoration:none;">Inhaltshinweis</a></span></div>
 </body>
 </html>
