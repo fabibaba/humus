@@ -910,6 +910,7 @@ function Merkliste(props){
               "{z.text.length>200?z.text.substring(0,200)+"…":z.text}"
             </div>
             <div style={{color:P.light,fontSize:10}}>{z.title&&z.title.substring(0,50)}</div>
+            {z.timestamp!=null&&<div style={{color:P.teal,fontSize:10,marginTop:2}}>{z.exactTimestamp?"⏱ ":"⏱ ca. "}{Math.floor(z.timestamp/60)}:{String(z.timestamp%60).padStart(2,"0")} min</div>}
             <div style={{display:"flex",gap:6,marginTop:6}}>
               {z.youtube&&<a href={z.youtube} target="_blank" rel="noreferrer"
                 style={{color:P.teal,fontSize:10,textDecoration:"none",
@@ -1382,6 +1383,25 @@ function VolltextSuche(props) {
       <button onClick={function(){
         if(props.onSaveZitat){
           var ep=savePopup.ep;
+          // Look up exact timestamp from timing data if available
+          var estSecs=null;
+          if(savePopup.charPos!=null&&props.transcripts){
+            var tr=props.transcripts[savePopup.ytId];
+            if(tr&&tr.timing&&tr.timing.length>0){
+              // Binary search for closest timing entry
+              var timing=tr.timing;
+              var lo=0,hi=timing.length-1,best=0;
+              while(lo<=hi){
+                var mid=Math.floor((lo+hi)/2);
+                if(timing[mid][0]<=savePopup.charPos){best=mid;lo=mid+1;}
+                else hi=mid-1;
+              }
+              estSecs=Math.round(timing[best][1]);
+            } else if(savePopup.charPos){
+              estSecs=Math.round(savePopup.charPos/11.67);
+            }
+          }
+          var ytUrl=ep&&ep.yt?"https://youtu.be/"+ep.yt+(estSecs!=null?"?t="+estSecs:""):"";
           props.onSaveZitat({
             id:"z-"+Date.now(),
             text:savePopup.text,
@@ -1389,7 +1409,11 @@ function VolltextSuche(props) {
             guest:savePopup.guest||"",
             title:savePopup.title||"",
             epId:ep?epId(ep):null,
-            youtube:ep&&ep.yt?"https://youtu.be/"+ep.yt:"",
+            youtube:ytUrl,
+            timestamp:estSecs,
+            exactTimestamp:!!(savePopup.charPos&&props.transcripts&&
+              props.transcripts[savePopup.ytId]&&
+              props.transcripts[savePopup.ytId].timing),
             savedAt:new Date().toISOString(),
           });
         }
@@ -1426,6 +1450,7 @@ function VolltextSuche(props) {
                 var text=sel&&sel.toString().trim();
                 if(text&&text.length>5){
                   setSavePopup({text:text,ep:hit.ep,ytId:hit.ytId,guest:hit.guest,title:hit.title,
+                    charPos:snip.start,
                     x:Math.min(e.clientX,window.innerWidth-200),
                     y:Math.max(e.clientY-60,10)});
                 }
