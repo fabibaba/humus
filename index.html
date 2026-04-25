@@ -3,18 +3,12 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>🌱 Humus-Kompass</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <title>🌱 Humus-Kompass · hamburg.global</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #f6f0e6; font-family: Georgia, serif; }
-    #root { min-height: 100vh; }
-    #loading { display: flex; align-items: center; justify-content: center;
-               min-height: 100vh; color: #3a9e8c; font-size: 18px; font-family: Georgia, serif; }
-  </style>
+  <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #f6f0e6; }</style>
 </head>
 <body>
   <div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#3a9e8c;font-size:18px;font-family:Georgia,serif;">🌱 Humus-Kompass lädt…</div></div>
@@ -870,48 +864,137 @@ function Glossar() {
   </div>);
 }
 
+function App(){
+  var [merkliste,setMerkliste]=useState([]);
+  var [discoveries,setDiscoveries]=useState([]);
+  var [pins,setPins]=useState([]);
+  var [tab,setTab]=useState("kompass");
+  var [sphere,setSphere]=useState(null);
+  var [felder,setFelder]=useState(null);
+  var [vennFilter,setVennFilter]=useState(null);
+  var [filterMode,setFilterMode]=useState("all");
+  var [selected,setSelected]=useState(null);
+  var [search,setSearch]=useState("");
+  var [navHistory,setNavHistory]=useState([]);
+  var [gFilters,setGFilters]=useState(defaultFilters());
+  var [resetKey,setResetKey]=useState(0);
 
+  function handleGFilter(field,val){setGFilters(function(f){var n=Object.assign({},f);if(field==="sphere"){n.sphere=val;}else if(field==="alphaMode"){n.alphaMode=val;}else{n[field]=toggleArr(f[field]||[],val);}return n;});}
+  function navigateTo(nt,ns){setNavHistory(function(h){return h.concat([{tab:tab,selected:selected}]);});setTab(nt);setSelected(ns||null);}
+  function goBack(){if(navHistory.length===0)return;var p=navHistory[navHistory.length-1];setNavHistory(function(h){return h.slice(0,-1);});setTab(p.tab);setSelected(p.selected);}
+  function handleNavEp(ep){navigateTo("kompass",ep);}
+  async function toggleBookmark(ep){var id=epId(ep);await setMerkliste(function(p){return p.indexOf(id)>=0?p.filter(function(x){return x!==id;}):p.concat([id]);});}
+  async function saveDiscovery(disc){await setDiscoveries(function(p){return p.concat([disc]);});}
+  async function shareDiscovery(disc){var pin={id:String(Date.now()),authorName:"Anonym",title:disc.title,query:disc.query,response:disc.response,createdAt:new Date().toISOString()};await setPins(function(p){return p.concat([pin]);});navigateTo("community",null);}
 
-// Mount app
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
-
-  </script>
-
-  <script>
-    // Show app once React has mounted - check repeatedly
-    function checkMounted() {
-      var loading = document.getElementById('loading');
-      var root = document.getElementById('root');
-      if (root && root.children.length > 0) {
-        loading.style.display = 'none';
-        root.style.display = 'block';
-      } else {
-        setTimeout(checkMounted, 200);
-      }
-    }
-    setTimeout(checkMounted, 500);
-  </script>
-
-  <!-- Content Notice Footer -->
-  <div id="content-notice" style="background:#2c2820;color:#9a8e80;padding:12px 20px;
-    font-family:Georgia,serif;font-size:11px;line-height:1.6;border-top:2px solid #3a9e8c;">
-    <div style="max-width:900px;margin:0 auto;display:flex;justify-content:space-between;
-      flex-wrap:wrap;gap:8px;align-items:center;">
-      <span>
-        🌱 <strong style="color:#f6f0e6">Humus-Kompass</strong> ·
-        Ein Projekt von <a href="https://hamburg.global" target="_blank"
-          style="color:#3a9e8c;text-decoration:none;">hamburg.global</a> ·
-        Code: <a href="LICENSE" style="color:#3a9e8c;text-decoration:none;">MIT-Lizenz</a>
-      </span>
-      <span>
-        Alle verlinkten Inhalte © der jeweiligen Urheber:innen ·
-        Kurzzitate gemäß §&nbsp;51&nbsp;UrhG ·
-        <a href="NOTICE.md" target="_blank"
-          style="color:#3a9e8c;text-decoration:none;">Inhaltshinweis</a>
-      </span>
+  var _fns=[];
+  if(sphere)_fns.push(function(e){return e.spheres.indexOf(sphere)>=0;});
+  if(felder)_fns.push(function(e){return e.felder.indexOf(felder)>=0;});
+  if(vennFilter)_fns.push(function(e){return e.vennFields&&e.vennFields.indexOf(vennFilter)>=0;});
+  if(search.trim()){var _sq=search.toLowerCase();_fns.push(function(e){return (e.guest&&e.guest.toLowerCase().indexOf(_sq)>=0)||e.title.toLowerCase().indexOf(_sq)>=0||e.keywords.some(function(k){return k.toLowerCase().indexOf(_sq)>=0;})||(e.quote&&e.quote.toLowerCase().indexOf(_sq)>=0)||e.felder.some(function(f){return f.toLowerCase().indexOf(_sq)>=0;});});}
+  var filtered=_fns.length===0?EPISODES:filterMode==="all"?EPISODES.filter(function(e){return _fns.every(function(f){return f(e);});}):filterMode==="any"?EPISODES.filter(function(e){return _fns.some(function(f){return f(e);});}):EPISODES.map(function(e){return{ep:e,s:_fns.filter(function(f){return f(e);}).length};}).filter(function(r){return r.s>0;}).sort(function(a,b){return b.s-a.s;}).map(function(r){return r.ep;});
+  var gFiltered=applyGraphFilters(EPISODES,gFilters,filterMode);
+  function selToggle(ep){setSelected(function(s){return s&&epId(s)===epId(ep)?null:ep;});}
+  var TABS=[["kompass","🧭 Kompass"],["graph","🕸 Graph"],["suche","🔍 Suche"],["ki","🌿 KI-Kompass"],["smartsuche","🔎 Smart-Suche"],["glossar","📚 Glossar"],["merkliste","🔖 Merkliste"+(merkliste.length>0?" ("+merkliste.length+")":"")],["community","📌 Netzwerk"+(pins.length>0?" ("+pins.length+")":"")]];
+  return(<div style={{background:P.cream,color:P.dark,minHeight:"100vh",fontFamily:"Georgia,serif",position:"relative"}}>
+    <div style={{background:P.white,borderBottom:"2px solid rgba(58,158,140,0.12)",padding:"12px 20px 0"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
+        <button onClick={goBack} disabled={navHistory.length===0}
+          style={{background:navHistory.length>0?P.tealPale:P.creamDim,color:navHistory.length>0?P.teal:P.light,border:"1px solid "+(navHistory.length>0?P.teal+"50":P.creamDim),borderRadius:6,padding:"4px 10px",fontSize:12,cursor:navHistory.length>0?"pointer":"default",fontFamily:"Georgia,serif",opacity:navHistory.length>0?1:0.4}}
+          title={navHistory.length>0?"Zurück ("+navHistory.length+" Schritte)":"Kein Verlauf"}>
+          ← Zurück{navHistory.length>1?" ("+navHistory.length+")":""}
+        </button>
+        <span style={{color:P.teal,fontSize:16,fontWeight:"bold"}}>🌱 Humus-Kompass</span>
+        <span style={{color:P.light,fontSize:11}}>{EPISODES.length} Einträge</span>
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",flexWrap:"wrap"}}>{TABS.map(function(t){return(<button key={t[0]} onClick={function(){setTab(t[0]);setNavHistory([]);}} style={{background:"transparent",color:tab===t[0]?P.teal:P.mid,border:"none",borderBottom:"2px solid "+(tab===t[0]?P.teal:"transparent"),padding:"7px 12px",cursor:"pointer",fontSize:11,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{t[1]}</button>);})}</div>
+        <div style={{padding:"4px 8px"}}><FilterModeToggle mode={filterMode} onChange={setFilterMode}/></div>
+      </div>
     </div>
-  </div>
+    <div style={{padding:"18px 20px"}}>
+      {tab==="kompass"&&(<div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:20,alignItems:"start"}}>
+        <div style={{minWidth:300,maxWidth:620}}>
+          <Compass activeSphere={sphere} activeFelder={felder} activeVennFilter={vennFilter}
+            onSphere={function(id){setSphere(function(p){return p===id?null:id;});}}
+            onFelder={function(f){setFelder(function(p){return p===f?null:f;});}}
+            onVennFilter={function(id){setVennFilter(function(p){return p===id?null:id;});}}
+            count={filtered.length}/>
+        </div>
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            {(sphere||felder||vennFilter)?<div style={{color:P.mid,fontSize:11,padding:"4px 8px",background:P.white,borderRadius:4,border:"1px solid "+P.creamDim}}>Linse: {sphere&&<strong style={{color:sc(sphere)}}>{(SPHERES.find(function(s){return s.id===sphere;})||{}).iLabel}</strong>}{sphere&&felder&&" · "}{felder&&<strong style={{color:P.teal}}>{felder}</strong>}{(sphere||felder)&&vennFilter&&" · "}{vennFilter&&<strong style={{color:"#6a50a0"}}>⬡ {vennFilter}</strong>}</div>:<div/>}
+            <FilterModeToggle mode={filterMode} onChange={setFilterMode}/>
+          </div>
+          <div style={{maxHeight:560,overflowY:"auto",paddingRight:4}}>
+            {filtered.length===0?<div style={{color:P.light,fontSize:13}}>Keine Einträge.</div>:filtered.map(function(ep){return <EpCard key={epId(ep)} ep={ep} onClick={selToggle} active={selected&&epId(selected)===epId(ep)} bookmarked={merkliste.indexOf(epId(ep))>=0} onBookmark={toggleBookmark}/>;})}</div>
+        </div>
+        {selected&&(function(){
+          var idx2=filtered.findIndex(function(e){return epId(e)===epId(selected);});
+          return <div style={{gridColumn:"1 / -1"}}><DetailPanel ep={selected} onClose={function(){setSelected(null);}}
+            bookmarked={merkliste.indexOf(epId(selected))>=0} onBookmark={toggleBookmark}
+            onNavEp={handleNavEp} onSelect={setSelected}
+            position={idx2>=0?(idx2+1)+" / "+filtered.length:null}
+            onPrev={idx2>0?function(){setSelected(filtered[idx2-1]);}:null}
+            onNext={idx2<filtered.length-1?function(){setSelected(filtered[idx2+1]);}:null}/></div>;
+        })()}
+      </div>)}
+      {tab==="graph"&&(<div style={{display:"grid",gridTemplateColumns:selected?"1fr 300px":"1fr",gap:20}}>
+        <div>
+          <GraphFilterPanel filters={gFilters} onChange={handleGFilter} filterMode={filterMode} onFilterMode={setFilterMode} onResetFilters={function(){setGFilters(defaultFilters());}} onResetLayout={function(){setResetKey(function(k){return k+1;});}}/>
+          <div style={{color:P.light,fontSize:11,marginBottom:8}}>{gFiltered.length} von {EPISODES.length} Einträge sichtbar</div>
+          <div style={{background:P.white,borderRadius:8,border:"1px solid "+P.creamDim,overflow:"hidden"}}>
+            <Graph key={resetKey} eps={gFiltered.length>0?gFiltered:EPISODES} selected={selected} onSelect={selToggle}/>
+          </div>
+          <div style={{color:P.light,fontSize:10,marginTop:6,textAlign:"center"}}>Knoten ziehen → bleiben fixiert · ⟳ Layout für Reset</div>
+        </div>
+        {selected&&(function(){
+          var src=gFiltered;
+          var idx2=src.findIndex(function(e){return epId(e)===epId(selected);});
+          return <DetailPanel ep={selected} onClose={function(){setSelected(null);}}
+            bookmarked={merkliste.indexOf(epId(selected))>=0} onBookmark={toggleBookmark}
+            onNavEp={handleNavEp} onSelect={setSelected}
+            position={idx2>=0?(idx2+1)+" / "+src.length:null}
+            onPrev={idx2>0?function(){setSelected(src[idx2-1]);}:null}
+            onNext={idx2<src.length-1?function(){setSelected(src[idx2+1]);}:null}/>;
+        })()}
+      </div>)}
+      {tab==="suche"&&(<div style={{display:"grid",gridTemplateColumns:selected?"1fr 300px":"1fr",gap:20}}>
+        <div>
+          <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="Person, Thema, Stichwort, Zitat…" style={{width:"100%",background:P.white,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:6,padding:"10px 14px",fontSize:13,fontFamily:"Georgia,serif",outline:"none",boxSizing:"border-box"}}/>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:8}}>{SPHERES.map(function(s){return <button key={s.id} onClick={function(){setSphere(function(p){return p===s.id?null:s.id;});}} style={{background:sphere===s.id?s.pale:"transparent",color:s.color,border:"1px solid "+s.color+"60",borderRadius:12,padding:"3px 8px",fontSize:10,cursor:"pointer"}}>{s.iLabel.split(" ·")[0]}</button>;})}</div>
+          <div style={{color:P.light,fontSize:11,margin:"8px 0 6px"}}>{filtered.length} Einträge</div>
+          <div style={{maxHeight:520,overflowY:"auto"}}>{filtered.map(function(ep){return <EpCard key={epId(ep)} ep={ep} onClick={selToggle} active={selected&&epId(selected)===epId(ep)} bookmarked={merkliste.indexOf(epId(ep))>=0} onBookmark={toggleBookmark}/>;})}</div>
+        </div>
+        {selected&&(function(){
+          var src=filtered;
+          var idx2=src.findIndex(function(e){return epId(e)===epId(selected);});
+          return <DetailPanel ep={selected} onClose={function(){setSelected(null);}}
+            bookmarked={merkliste.indexOf(epId(selected))>=0} onBookmark={toggleBookmark}
+            onNavEp={handleNavEp} onSelect={setSelected}
+            position={idx2>=0?(idx2+1)+" / "+src.length:null}
+            onPrev={idx2>0?function(){setSelected(src[idx2-1]);}:null}
+            onNext={idx2<src.length-1?function(){setSelected(src[idx2+1]);}:null}/>;
+        })()}
+      </div>)}
+      {tab==="ki"&&<AIKompass merkliste={merkliste} onSave={saveDiscovery} onBookmark={toggleBookmark} onNavEp={handleNavEp}/>
+      }{tab==="smartsuche"&&<SmartSearch merkliste={merkliste} onBookmark={toggleBookmark} onNavEp={handleNavEp} filterMode={filterMode} onFilterMode={setFilterMode}/>
+      }{tab==="glossar"&&<Glossar/>
+      }{tab==="merkliste"&&<Merkliste merkliste={merkliste} discoveries={discoveries} onRemoveEp={function(id){setMerkliste(function(p){return p.filter(function(x){return x!==id;});});}} onRemoveDisc={function(id){setDiscoveries(function(p){return p.filter(function(d){return d.id!==id;});});}} onShare={shareDiscovery} onNavEp={handleNavEp}/>
+      }{tab==="community"&&<Gemeinschaft pins={pins} onNavEp={handleNavEp}/>}
+    </div>
+  </div>);
+}
 
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <div style="background:#2c2820;color:#9a8e80;padding:10px 20px;font-family:Georgia,serif;font-size:11px;border-top:2px solid #3a9e8c;">
+    <span>🌱 <strong style="color:#f6f0e6">Humus-Kompass</strong> · <a href="https://hamburg.global" style="color:#3a9e8c">hamburg.global</a></span>
+    &nbsp;·&nbsp;
+    <span>Alle verlinkten Inhalte © der jeweiligen Urheber:innen · Kurzzitate gemäß §&nbsp;51&nbsp;UrhG · <a href="NOTICE.md" style="color:#3a9e8c">Inhaltshinweis</a></span>
+  </div>
 </body>
 </html>
