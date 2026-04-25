@@ -1182,8 +1182,6 @@ function Glossar(props) {
     {FRAGMENTS.length===0&&<div style={{color:P.mid,fontSize:12,padding:20,textAlign:"center",background:P.tealPale,borderRadius:8,marginTop:10}}>
       💡 Fragmente werden automatisch aus Transkripten extrahiert wenn neue Einträge verarbeitet werden.
     </div>}
-  </div>
-
   {/* Detail Panel for selected Fragment */}
   {selectedFrag&&(function(){
     var ft=FRAGMENT_TYPES.find(function(t){return t.id===selectedFrag.type;});
