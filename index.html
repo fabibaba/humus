@@ -1240,9 +1240,10 @@ function Glossar(props) {
         </button>}
         <button onClick={function(){
           navigator.clipboard&&navigator.clipboard.writeText(
-            selectedFrag.title+"\n\n"+selectedFrag.desc+
-            (selectedFrag.quote_en?"\n\n""+selectedFrag.quote_en+""":" ")+
-            "\n\nQuellen: "+relEps.map(function(ep){return ep.yt?"https://youtu.be/"+ep.yt:"";}).filter(Boolean).join(", ")
+            [selectedFrag.title,selectedFrag.desc,
+             selectedFrag.quote_en||"",
+             "Quellen: "+relEps.map(function(ep){return ep.yt?"https://youtu.be/"+ep.yt:"";}).filter(Boolean).join(", ")
+            ].filter(Boolean).join("\n\n")
           );
         }} style={{background:P.cream,color:P.mid,border:"1px solid "+P.creamDim,
           borderRadius:6,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>
