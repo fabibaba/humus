@@ -12,7 +12,7 @@
 </head>
 <body>
 <script>(function(){var K="hk-auth",P="humus2026";if(sessionStorage.getItem(K)!=="ok"){var p=prompt("🌱 Humus-Kompass\nPasswort:");if(p===P)sessionStorage.setItem(K,"ok");else{document.body.innerHTML="<div style='display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Georgia;color:#3a9e8c;font-size:18px;'>Zugang verweigert.</div>";throw new Error("auth");}}})();</script>
-<div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#3a9e8c;font-size:18px;font-family:Georgia,serif;">🌱 Humus-Kompass lädt…</div></div>
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#3a9e8c;font-size:18px;font-family:Georgia,serif;">🌱 Lädt…</div></div>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef } = React;
 
@@ -773,7 +773,7 @@ function SmartSearch(props) {
   );
 }
 
-function AIKompass(props){var [q,setQ]=useState(""),[resp,setResp]=useState(""),[loading,setLoading]=useState(false),[hist,setHist]=useState([]),[saveTitle,setSaveTitle]=useState(""),[saved,setSaved]=useState(false),[peekEp,setPeekEp]=useState(null);var PRESETS=["Welche Episoden verbinden 'Belonging' mit konkreter Praxis?","Zeig Ambivalenzen zwischen Technikoptimismus und Kollapsdenken","Was passt zum 'größeren Wir' in hamburg.global?","Verbindungen zwischen Donut-Ökonomie und indigenem Wissen","Episoden für Trauer, Handlungsfähigkeit und emotionale Arbeit"];var ctx=EPISODES.map(function(e){return e.type+" Ep"+(e.num||"?")+" | "+(e.type==="guest"?e.guest:e.title.substring(0,40))+" | Sphären:"+e.spheres+" | Felder:"+e.felder.slice(0,3)+(e.quote?" | \""+e.quote.substring(0,50)+"\"":"");}).join("\n");async function ask(txt){if(!txt.trim()||loading)return;setLoading(true);setResp("");setSaved(false);setSaveTitle(txt.substring(0,40));try{var r=await fetch("https:"+"//"+"api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":(sessionStorage.getItem("hk-apikey")||""),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1000,system:"Du bist Wissensnavigator für hamburg.global und The Great Simplification.\n\nSinn-&-Machen-Kompass:\nSphäre 1 (äußerste): Charakter (Belonging↔Othering) / Werte & Haltung (How)\nSphäre 2 (mittlere): Natur- & Kulturverständnis / Ideen & Vorstellung (Why)\nSphäre 3 (innerste): Bias & Sinne / Fühlen & Machen (Who)\n\nFelder zum Machen (Venn): Kontexte/Inhalte/Fragen · Figuren · Strukturen/Systeme\nÜberschneidungen: Anlässe&Motivationen · Prozesse&Routinen · Mittel&Werkzeuge · Wirkung (Zentrum)\n\nKernfragen: 'größeres Wir' und 'Bedingungen für fürsorglichere Zukünfte'.\n\nDATENBANK:\n"+ctx+"\n\nNenne Gastnamen vollständig. Antworte auf Deutsch. Prose max 300 Wörter.",messages:hist.concat([{role:"user",content:txt}])})});var raw=await r.text();var data;try{data=JSON.parse(raw);}catch(pe){setResp("⚠ Parse-Fehler: "+raw.substring(0,300));setLoading(false);return;}if(data.error){setResp("⚠ API: "+data.error.message);setLoading(false);return;}var t="";if(data.content&&Array.isArray(data.content)){t=data.content.filter(function(c){return c.type==="text";}).map(function(c){return c.text;}).join("\n\n");}if(!t)t="Keine Antwort erhalten.";setResp(t);setHist(function(h){return h.concat([{role:"user",content:txt},{role:"assistant",content:t}]);});}catch(e){setResp("⚠ Fehler: "+e.message);}setLoading(false);}async function doSave(){if(!saveTitle.trim()||!resp)return;await props.onSave({id:String(Date.now()),title:saveTitle,query:q,response:resp,savedAt:new Date().toISOString()});setSaved(true);}return(<div>{!sessionStorage.getItem("hk-apikey")&&<div style={{background:"#f5e8c8",border:"1px solid #d4a84b50",borderRadius:8,padding:"14px 16px",marginBottom:16}}><div style={{color:"#d4a84b",fontFamily:"Georgia,serif",fontSize:14,fontWeight:"bold",marginBottom:8}}>🔑 API-Key für KI-Kompass</div><div style={{color:"#6a5e50",fontSize:12,marginBottom:8}}>Einmalig pro Browser-Sitzung eingeben.</div><div style={{display:"flex",gap:8}}><input id="hk-key-input" placeholder="sk-ant-api03-..." type="password" style={{flex:1,background:"#fff",color:"#2c2820",border:"1px solid #e8e0d0",borderRadius:6,padding:"8px 12px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/><button onClick={function(){var k=document.getElementById("hk-key-input").value.trim();if(k.startsWith("sk-ant")){sessionStorage.setItem("hk-apikey",k);window.location.reload();}else alert("Bitte einen gültigen Anthropic Key eingeben (beginnt mit sk-ant).");}} style={{background:"#3a9e8c",color:"#fff",border:"none",borderRadius:6,padding:"8px 14px",fontSize:12,cursor:"pointer"}}>Speichern & laden</button></div><div style={{color:"#9a8e80",fontSize:10,marginTop:6}}>Key wird nur in dieser Sitzung gespeichert – nicht dauerhaft.</div></div>}<div style={{display:"grid",gridTemplateColumns:peekEp?"1fr 300px":"1fr",gap:20,alignItems:"start"}}><div style={{maxWidth:680}}><div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:16,marginBottom:6}}>🌿 KI-Kompass — {EPISODES.length} Episoden</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}}>{PRESETS.map(function(p){return <button key={p} onClick={function(){setQ(p);ask(p);}} style={{background:P.tealPale,color:P.tealDim,border:"1px solid rgba(58,158,140,0.25)",borderRadius:14,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>{p.substring(0,46)}…</button>;})}</div><div style={{display:"flex",gap:8,marginBottom:14}}><textarea value={q} onChange={function(e){setQ(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask(q);}}} placeholder="Deine Frage an den Kompost… (Enter)" rows={2} style={{flex:1,background:P.white,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"10px 12px",fontSize:13,fontFamily:"Georgia,serif",resize:"none",outline:"none"}}/><button onClick={function(){ask(q);}} disabled={loading||!q.trim()} style={{background:loading?P.creamDim:P.teal,color:P.white,border:"none",borderRadius:4,padding:"0 16px",cursor:loading?"default":"pointer",fontSize:14}}>{loading?"…":"→"}</button></div>{(resp||loading)&&<div style={{background:P.white,border:"1px solid "+P.creamDim,borderRadius:6,padding:"16px 20px"}}>{loading?<div style={{color:P.teal,fontSize:13}}>Durchsuche Kompost…</div>:(<div><LinkedText text={resp} onEpClick={function(ep){setPeekEp(ep);}}/>{!saved&&<div style={{marginTop:14,paddingTop:12,borderTop:"1px solid "+P.creamDim,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><input value={saveTitle} onChange={function(e){setSaveTitle(e.target.value);}} placeholder="Titel…" style={{flex:1,minWidth:160,background:P.cream,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"6px 10px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/><button onClick={doSave} style={{background:P.gold,color:P.white,border:"none",borderRadius:4,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>💾 Speichern</button></div>}{saved&&<div style={{color:P.teal,fontSize:12,marginTop:10}}>✓ Gespeichert!</div>}</div>)}</div>}</div>{peekEp&&<div><div style={{color:P.light,fontSize:11,marginBottom:6}}>Episode aus Antwort:</div><DetailPanel ep={peekEp} onClose={function(){setPeekEp(null);}} bookmarked={props.merkliste&&props.merkliste.indexOf(epId(peekEp))>=0} onBookmark={props.onBookmark} onNavEp={function(ep){props.onNavEp(ep);setPeekEp(null);}}/></div>}</div></div>);}
+function AIKompass(props){var [q,setQ]=useState(""),[resp,setResp]=useState(""),[loading,setLoading]=useState(false),[hist,setHist]=useState([]),[saveTitle,setSaveTitle]=useState(""),[saved,setSaved]=useState(false),[peekEp,setPeekEp]=useState(null);var PRESETS=["Welche Episoden verbinden 'Belonging' mit konkreter Praxis?","Zeig Ambivalenzen zwischen Technikoptimismus und Kollapsdenken","Was passt zum 'größeren Wir' in hamburg.global?","Verbindungen zwischen Donut-Ökonomie und indigenem Wissen","Episoden für Trauer, Handlungsfähigkeit und emotionale Arbeit"];var ctx=EPISODES.map(function(e){return e.type+" Ep"+(e.num||"?")+" | "+(e.type==="guest"?e.guest:e.title.substring(0,40))+" | Sphären:"+e.spheres+" | Felder:"+e.felder.slice(0,3)+(e.quote?" | \""+e.quote.substring(0,50)+"\"":"");}).join("\n");async function ask(txt){if(!txt.trim()||loading)return;setLoading(true);setResp("");setSaved(false);setSaveTitle(txt.substring(0,40));try{var r=await fetch("https:"+"//"+"api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":(sessionStorage.getItem("hk-apikey")||""),"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1000,system:"Du bist Wissensnavigator für hamburg.global und The Great Simplification.\n\nSinn-&-Machen-Kompass:\nSphäre 1 (äußerste): Charakter (Belonging↔Othering) / Werte & Haltung (How)\nSphäre 2 (mittlere): Natur- & Kulturverständnis / Ideen & Vorstellung (Why)\nSphäre 3 (innerste): Bias & Sinne / Fühlen & Machen (Who)\n\nFelder zum Machen (Venn): Kontexte/Inhalte/Fragen · Figuren · Strukturen/Systeme\nÜberschneidungen: Anlässe&Motivationen · Prozesse&Routinen · Mittel&Werkzeuge · Wirkung (Zentrum)\n\nKernfragen: 'größeres Wir' und 'Bedingungen für fürsorglichere Zukünfte'.\n\nDATENBANK:\n"+ctx+"\n\nNenne Gastnamen vollständig. Antworte auf Deutsch. Prose max 300 Wörter.",messages:hist.concat([{role:"user",content:txt}])})});var raw=await r.text();var data;try{data=JSON.parse(raw);}catch(pe){setResp("⚠ Parse-Fehler: "+raw.substring(0,300));setLoading(false);return;}if(data.error){setResp("⚠ API: "+data.error.message);setLoading(false);return;}var t="";if(data.content&&Array.isArray(data.content)){t=data.content.filter(function(c){return c.type==="text";}).map(function(c){return c.text;}).join("\n\n");}if(!t)t="Keine Antwort erhalten.";setResp(t);setHist(function(h){return h.concat([{role:"user",content:txt},{role:"assistant",content:t}]);});}catch(e){setResp("⚠ Fehler: "+e.message);}setLoading(false);}async function doSave(){if(!saveTitle.trim()||!resp)return;await props.onSave({id:String(Date.now()),title:saveTitle,query:q,response:resp,savedAt:new Date().toISOString()});setSaved(true);}return(<div>{!sessionStorage.getItem("hk-apikey")&&<div style={{background:"#f5e8c8",border:"1px solid #d4a84b50",borderRadius:8,padding:"14px 16px",marginBottom:16}}><div style={{color:"#d4a84b",fontFamily:"Georgia,serif",fontSize:14,fontWeight:"bold",marginBottom:6}}>🔑 API-Key für KI-Kompass</div><div style={{display:"flex",gap:8}}><input id="hk-key-input" placeholder="sk-ant-api03-..." type="password" style={{flex:1,background:"#fff",color:"#2c2820",border:"1px solid #e8e0d0",borderRadius:6,padding:"8px 12px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/><button onClick={function(){var k=document.getElementById("hk-key-input").value.trim();if(k.startsWith("sk-ant")){sessionStorage.setItem("hk-apikey",k);window.location.reload();}else alert("Key muss mit sk-ant beginnen.");}} style={{background:"#3a9e8c",color:"#fff",border:"none",borderRadius:6,padding:"8px 14px",fontSize:12,cursor:"pointer"}}>Speichern</button></div><div style={{color:"#9a8e80",fontSize:10,marginTop:6}}>Gilt nur für diese Browser-Sitzung.</div></div>}<div style={{display:"grid",gridTemplateColumns:peekEp?"1fr 300px":"1fr",gap:20,alignItems:"start"}}><div style={{maxWidth:680}}><div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:16,marginBottom:6}}>🌿 KI-Kompass — {EPISODES.length} Episoden</div><div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}}>{PRESETS.map(function(p){return <button key={p} onClick={function(){setQ(p);ask(p);}} style={{background:P.tealPale,color:P.tealDim,border:"1px solid rgba(58,158,140,0.25)",borderRadius:14,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>{p.substring(0,46)}…</button>;})}</div><div style={{display:"flex",gap:8,marginBottom:14}}><textarea value={q} onChange={function(e){setQ(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask(q);}}} placeholder="Deine Frage an den Kompost… (Enter)" rows={2} style={{flex:1,background:P.white,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"10px 12px",fontSize:13,fontFamily:"Georgia,serif",resize:"none",outline:"none"}}/><button onClick={function(){ask(q);}} disabled={loading||!q.trim()} style={{background:loading?P.creamDim:P.teal,color:P.white,border:"none",borderRadius:4,padding:"0 16px",cursor:loading?"default":"pointer",fontSize:14}}>{loading?"…":"→"}</button></div>{(resp||loading)&&<div style={{background:P.white,border:"1px solid "+P.creamDim,borderRadius:6,padding:"16px 20px"}}>{loading?<div style={{color:P.teal,fontSize:13}}>Durchsuche Kompost…</div>:(<div><LinkedText text={resp} onEpClick={function(ep){setPeekEp(ep);}}/>{!saved&&<div style={{marginTop:14,paddingTop:12,borderTop:"1px solid "+P.creamDim,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><input value={saveTitle} onChange={function(e){setSaveTitle(e.target.value);}} placeholder="Titel…" style={{flex:1,minWidth:160,background:P.cream,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:4,padding:"6px 10px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/><button onClick={doSave} style={{background:P.gold,color:P.white,border:"none",borderRadius:4,padding:"6px 14px",fontSize:12,cursor:"pointer"}}>💾 Speichern</button></div>}{saved&&<div style={{color:P.teal,fontSize:12,marginTop:10}}>✓ Gespeichert!</div>}</div>)}</div>}</div>{peekEp&&<div><div style={{color:P.light,fontSize:11,marginBottom:6}}>Episode aus Antwort:</div><DetailPanel ep={peekEp} onClose={function(){setPeekEp(null);}} bookmarked={props.merkliste&&props.merkliste.indexOf(epId(peekEp))>=0} onBookmark={props.onBookmark} onNavEp={function(ep){props.onNavEp(ep);setPeekEp(null);}}/></div>}</div></div>);}
 
 function Merkliste(props){
   var [comments,setComments]   = useState(function(){return loadLS("hk-comments",{});});
@@ -794,12 +794,27 @@ function Merkliste(props){
   function toggleEpInQ(qId,epId){setQuestions(function(qs){return qs.map(function(q){if(q.id!==qId)return q;var ids=q.epIds.indexOf(epId)>=0?q.epIds.filter(function(x){return x!==epId;}):[...q.epIds,epId];return Object.assign({},q,{epIds:ids});});});}
   function makeSnapshot(q){
     var eps=EPISODES.filter(function(ep){return q.epIds.indexOf(epId(ep))>=0;});
-    var text="Frage: "+q.text+"\n\n"+eps.map(function(ep){
-      return "• "+(ep.type==="guest"?ep.guest:ep.title)+"\n  "+
-             (ep.title||ep.title_en||"")+"\n  "+
-             (ep.quote||ep.quote_en||"")+"\n  "+
-             "https://youtu.be/"+(ep.yt||"");
-    }).join("\n\n");
+    var qZitate=(props.zitate||[]).filter(function(z){return q.epIds.indexOf(z.id)>=0;});
+    var text="═══════════════════════════════\n";
+    text+="FRAGE: "+q.text+"\n";
+    text+="Erstellt: "+new Date().toLocaleDateString("de-DE")+"\n";
+    text+="═══════════════════════════════\n\n";
+    if(qZitate.length>0){
+      text+="ZITATE:\n\n";
+      text+=qZitate.map(function(z){
+        return "❝ "+z.text+"\n"+"— "+(z.guest||"")+(z.title?" ("+z.title.substring(0,50)+")":"")+"\n"+(z.youtube||"");
+      }).join("\n\n");
+      text+="\n\n";
+    }
+    if(eps.length>0){
+      text+="VERKNÜPFTE EPISODEN:\n\n";
+      text+=eps.map(function(ep){
+        return "• "+(ep.type==="guest"?ep.guest:ep.title)+"\n  "+
+               (ep.title||ep.title_en||"")+"\n  "+
+               (ep.quote||ep.quote_en||"")+"\n  "+
+               "https://youtu.be/"+(ep.yt||"");
+      }).join("\n\n");
+    }
     var blob=new Blob([text],{type:"text/plain"});
     var a=document.createElement("a");
     a.href=URL.createObjectURL(blob);
@@ -866,6 +881,48 @@ function Merkliste(props){
       })}
     </div>
 
+    {/* Zitat-Karten aus Volltext-Suche */}
+    {props.zitate&&props.zitate.length>0&&<div style={{borderTop:"2px solid "+P.creamDim,paddingTop:16,marginBottom:16}}>
+      <div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:14,marginBottom:10}}>
+        💬 Gespeicherte Zitate
+        <span style={{color:P.light,fontSize:11,marginLeft:8}}>{props.zitate.length}</span>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:10}}>
+        {props.zitate.map(function(z){
+          var inQ=activeQ&&questions.find(function(q){return q.id===activeQ;});
+          var pinned=inQ&&inQ.epIds.indexOf(z.id)>=0;
+          return(<div key={z.id} style={{background:P.white,border:"1px solid "+(pinned?P.teal+"80":P.creamDim),
+            borderTop:"3px solid "+P.teal,borderRadius:8,padding:"10px 12px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+              <div style={{color:P.teal,fontSize:11,fontWeight:"bold"}}>{z.guest||"Unbekannt"}</div>
+              <div style={{display:"flex",gap:4}}>
+                {activeQ&&<button onClick={function(){toggleEpInQ(activeQ,z.id);}}
+                  title={pinned?"Von Frage lösen":"An Frage heften"}
+                  style={{background:pinned?P.teal+"20":P.creamDim,color:pinned?P.teal:P.mid,
+                    border:"1px solid "+(pinned?P.teal:P.creamDim),borderRadius:4,
+                    fontSize:10,padding:"1px 6px",cursor:"pointer"}}>{pinned?"📌":"📎"}</button>}
+                <button onClick={function(){props.onRemoveZitat(z.id);}}
+                  style={{background:"none",border:"none",color:P.light,cursor:"pointer",fontSize:13}}>×</button>
+              </div>
+            </div>
+            <div style={{color:P.mid,fontSize:11,lineHeight:1.6,fontStyle:"italic",
+              borderLeft:"2px solid "+P.teal+"50",paddingLeft:8,marginBottom:8}}>
+              "{z.text.length>200?z.text.substring(0,200)+"…":z.text}"
+            </div>
+            <div style={{color:P.light,fontSize:10}}>{z.title&&z.title.substring(0,50)}</div>
+            <div style={{display:"flex",gap:6,marginTop:6}}>
+              {z.youtube&&<a href={z.youtube} target="_blank" rel="noreferrer"
+                style={{color:P.teal,fontSize:10,textDecoration:"none",
+                  border:"1px solid "+P.teal+"40",borderRadius:4,padding:"1px 7px"}}>▶ Quelle</a>}
+              <button onClick={function(){navigator.clipboard&&navigator.clipboard.writeText('"'+z.text+'"\n\nQuelle: '+(z.guest||'')+(z.title?' – '+z.title:'')+'\n'+(z.youtube||''));}}
+                style={{background:"none",border:"1px solid "+P.creamDim,color:P.mid,
+                  borderRadius:4,fontSize:10,padding:"1px 7px",cursor:"pointer"}}>📋</button>
+            </div>
+          </div>);
+        })}
+      </div>
+    </div>}
+
     {/* Fragen-Board */}
     <div style={{borderTop:"2px solid "+P.creamDim,paddingTop:16}}>
       <div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:14,marginBottom:10}}>💬 Meine Fragen</div>
@@ -891,9 +948,32 @@ function Merkliste(props){
               <span style={{color:P.light,fontSize:10,marginLeft:8}}>{q.epIds.length} Einträge angeheftet</span>
             </div>
             <div style={{display:"flex",gap:4}}>
-              {q.epIds.length>0&&<button onClick={function(){makeSnapshot(q);}} title="Als Textdatei exportieren"
+              {(q.epIds.length>0||(props.zitate||[]).some(function(z){return q.epIds.indexOf(z.id)>=0;}))&&
+              <button onClick={function(){makeSnapshot(q);}} title="Als Textdatei exportieren"
                 style={{background:P.goldPale,color:P.gold,border:"1px solid "+P.gold+"50",
                   borderRadius:4,fontSize:11,padding:"2px 8px",cursor:"pointer"}}>📤 Export</button>}
+              {(q.epIds.length>0||(props.zitate||[]).some(function(z){return q.epIds.indexOf(z.id)>=0;}))&&
+              <button onClick={function(){
+                var qZitate=(props.zitate||[]).filter(function(z){return q.epIds.indexOf(z.id)>=0;});
+                var eps=EPISODES.filter(function(ep){return q.epIds.indexOf(epId(ep))>=0;});
+                var frag={
+                  id:"custom-"+Date.now(),
+                  type:"frage",
+                  title:q.text,
+                  desc:qZitate.length>0?qZitate[0].text.substring(0,150):"Aus Merkliste erstellt",
+                  keywords:eps.slice(0,3).map(function(ep){return ep.guest||ep.title||"";}),
+                  episodes:eps.map(function(ep){return ep.id||epId(ep);}),
+                  quote_en:qZitate.length>0?qZitate[0].text.substring(0,150):null,
+                  _custom:true,
+                  _savedAt:new Date().toISOString(),
+                };
+                var existing=JSON.parse(localStorage.getItem("hk-custom-frags")||"[]");
+                existing.push(frag);
+                localStorage.setItem("hk-custom-frags",JSON.stringify(existing));
+                prompt("✅ Gespeichert! Kopiere diesen JSON und schicke ihn an Claude um das Fragment dauerhaft einzubauen:",JSON.stringify(frag));
+              }} title="Als dauerhaftes Glossar-Fragment speichern"
+                style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"50",
+                  borderRadius:4,fontSize:11,padding:"2px 8px",cursor:"pointer"}}>📚 → Glossar</button>}
               <button onClick={function(){setQuestions(function(qs){return qs.filter(function(x){return x.id!==q.id;});});if(activeQ===q.id)setActiveQ(null);}}
                 style={{background:"none",border:"none",color:P.light,cursor:"pointer",fontSize:14}}>×</button>
             </div>
@@ -1045,14 +1125,18 @@ function Personen(props) {
 function Glossar(props) {
   var [activeType, setActiveType] = useState(null);
   var [search, setSearch] = useState("");
-  var filtered = FRAGMENTS.filter(function(f){
+  // Load custom fragments saved from Merkliste
+  var customFrags = JSON.parse(localStorage.getItem("hk-custom-frags")||"[]");
+  var allFragments = FRAGMENTS.concat(customFrags);
+
+  var filtered = allFragments.filter(function(f){
     if(activeType && f.type !== activeType) return false;
     if(search.trim()){var q=search.toLowerCase();return f.title.toLowerCase().indexOf(q)>=0||f.desc.toLowerCase().indexOf(q)>=0;}
     return true;
   });
   return(<div>
     <div style={{color:P.teal,fontFamily:"Georgia,serif",fontSize:16,marginBottom:8}}>📚 Glossar & Fragmente
-      <span style={{color:P.light,fontSize:11,marginLeft:8}}>{filtered.length} Fragmente</span>
+      <span style={{color:P.light,fontSize:11,marginLeft:8}}>{filtered.length} Fragmente{customFrags.length>0&&" ("+customFrags.length+" eigene)"}</span>
     </div>
     <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="Fragment suchen…"
       style={{width:"100%",background:P.white,color:P.dark,border:"1px solid "+P.creamDim,borderRadius:6,padding:"8px 12px",fontSize:13,fontFamily:"Georgia,serif",outline:"none",boxSizing:"border-box",marginBottom:10}}/>
@@ -1220,7 +1304,19 @@ function VolltextSuche(props) {
       }} style={{background:"none",border:"none",color:P.white,cursor:"pointer",
         padding:"4px 8px",fontSize:11,borderRadius:4}}>📋 Kopieren</button>
       <button onClick={function(){
-        if(savePopup.ep) props.onBookmark(savePopup.ep);
+        if(props.onSaveZitat){
+          var ep=savePopup.ep;
+          props.onSaveZitat({
+            id:"z-"+Date.now(),
+            text:savePopup.text,
+            ytId:savePopup.ytId,
+            guest:savePopup.guest||"",
+            title:savePopup.title||"",
+            epId:ep?epId(ep):null,
+            youtube:ep&&ep.yt?"https://youtu.be/"+ep.yt:"",
+            savedAt:new Date().toISOString(),
+          });
+        }
         setSavePopup(null);
       }} style={{background:"none",border:"none",color:P.white,cursor:"pointer",
         padding:"4px 8px",fontSize:11,borderRadius:4}}>🔖 Merkliste</button>
@@ -1253,7 +1349,7 @@ function VolltextSuche(props) {
                 var sel=window.getSelection();
                 var text=sel&&sel.toString().trim();
                 if(text&&text.length>5){
-                  setSavePopup({text:text,ep:hit.ep,
+                  setSavePopup({text:text,ep:hit.ep,ytId:hit.ytId,guest:hit.guest,title:hit.title,
                     x:Math.min(e.clientX,window.innerWidth-200),
                     y:Math.max(e.clientY-60,10)});
                 }
@@ -1299,6 +1395,7 @@ function saveLS(key, val) {
 
 function App(){
   var [merkliste,setMerkliste]=useState(function(){return loadLS("hk-merkliste",[]);});
+  var [zitate,setZitate]=useState(function(){return loadLS("hk-zitate",[]);});
   var [transcripts,setTranscripts]=useState(null);
   var [transcriptsLoading,setTranscriptsLoading]=useState(false);
 
@@ -1328,10 +1425,19 @@ function App(){
   function goBack(){if(navHistory.length===0)return;var p=navHistory[navHistory.length-1];setNavHistory(function(h){return h.slice(0,-1);});setTab(p.tab);setSelected(p.selected);}
   // Persist to localStorage on change
   useEffect(function(){saveLS("hk-merkliste",merkliste);},[merkliste]);
+  useEffect(function(){saveLS("hk-zitate",zitate);},[zitate]);
   useEffect(function(){saveLS("hk-discoveries",discoveries);},[discoveries]);
   useEffect(function(){saveLS("hk-pins",pins);},[pins]);
 
   function handleNavEp(ep){navigateTo("kompass",ep);}
+  function saveZitat(zitat){
+    setZitate(function(prev){
+      // avoid duplicates
+      if(prev.find(function(z){return z.id===zitat.id;})) return prev;
+      return prev.concat([zitat]);
+    });
+  }
+  function removeZitat(id){setZitate(function(prev){return prev.filter(function(z){return z.id!==id;});});}
   async function toggleBookmark(ep){var id=epId(ep);await setMerkliste(function(p){return p.indexOf(id)>=0?p.filter(function(x){return x!==id;}):p.concat([id]);});}
   async function saveDiscovery(disc){await setDiscoveries(function(p){return p.concat([disc]);});}
   async function shareDiscovery(disc){var pin={id:String(Date.now()),authorName:"Anonym",title:disc.title,query:disc.query,response:disc.response,createdAt:new Date().toISOString()};await setPins(function(p){return p.concat([pin]);});navigateTo("community",null);}
@@ -1464,11 +1570,11 @@ function App(){
         })()}
       </div>)}
       {tab==="ki"&&<AIKompass merkliste={merkliste} onSave={saveDiscovery} onBookmark={toggleBookmark} onNavEp={handleNavEp}/>
-      }{tab==="volltextsuche"&&<VolltextSuche transcripts={transcripts} loading={transcriptsLoading} onLoad={loadTranscripts} onNavEp={handleNavEp} onSaveFragment={function(frag){}} onBookmark={toggleBookmark} merkliste={merkliste}/>
+      }{tab==="volltextsuche"&&<VolltextSuche transcripts={transcripts} loading={transcriptsLoading} onLoad={loadTranscripts} onNavEp={handleNavEp} onSaveZitat={saveZitat} onBookmark={toggleBookmark} merkliste={merkliste}/>
       }{tab==="smartsuche"&&<SmartSearch merkliste={merkliste} onBookmark={toggleBookmark} onNavEp={handleNavEp} filterMode={filterMode} onFilterMode={setFilterMode}/>
       }{tab==="personen"&&<Personen onNavEp={handleNavEp}/>
       }{tab==="glossar"&&<Glossar onNavEp={handleNavEp}/>
-      }{tab==="merkliste"&&<Merkliste merkliste={merkliste} discoveries={discoveries} onRemoveEp={function(id){setMerkliste(function(p){return p.filter(function(x){return x!==id;});});}} onRemoveDisc={function(id){setDiscoveries(function(p){return p.filter(function(d){return d.id!==id;});});}} onShare={shareDiscovery} onNavEp={handleNavEp}/>
+      }{tab==="merkliste"&&<Merkliste merkliste={merkliste} zitate={zitate} onRemoveZitat={removeZitat} discoveries={discoveries} onRemoveEp={function(id){setMerkliste(function(p){return p.filter(function(x){return x!==id;});});}} onRemoveDisc={function(id){setDiscoveries(function(p){return p.filter(function(d){return d.id!==id;});});}} onShare={shareDiscovery} onNavEp={handleNavEp}/>
       }{tab==="community"&&<Gemeinschaft pins={pins} onNavEp={handleNavEp}/>}
     </div>
   </div>);
@@ -1477,6 +1583,6 @@ function App(){
 const domRoot = ReactDOM.createRoot(document.getElementById('root'));
 domRoot.render(<App />);
 </script>
-<div style="background:#2c2820;color:#9a8e80;padding:10px 20px;font-family:Georgia,serif;font-size:11px;border-top:2px solid #3a9e8c;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;"><span>🌱 <strong style="color:#f6f0e6">Humus-Kompass</strong> · <a href="https://hamburg.global" target="_blank" style="color:#3a9e8c;text-decoration:none;">hamburg.global</a> · MIT-Lizenz</span><span>Alle Inhalte © Urheber:innen · §51 UrhG · <a href="NOTICE.md" target="_blank" style="color:#3a9e8c;text-decoration:none;">Inhaltshinweis</a></span></div>
+<div style="background:#2c2820;color:#9a8e80;padding:10px 20px;font-family:Georgia,serif;font-size:11px;border-top:2px solid #3a9e8c;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;"><span>🌱 <strong style="color:#f6f0e6">Humus-Kompass</strong> · <a href="https://hamburg.global" target="_blank" style="color:#3a9e8c;text-decoration:none;">hamburg.global</a> · MIT</span><span>© Urheber:innen · §51 UrhG · <a href="NOTICE.md" target="_blank" style="color:#3a9e8c;text-decoration:none;">Hinweis</a></span></div>
 </body>
 </html>
