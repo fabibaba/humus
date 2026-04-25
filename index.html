@@ -15,7 +15,7 @@
   <script>
     (function(){
       var PW_KEY = "hk-auth";
-      var PW = "humus2026"; // <-- Passwort hier ändern
+      var PW = "humus2026";
       function check(){
         if(sessionStorage.getItem(PW_KEY)==="ok") return true;
         var pw = prompt("🌱 Humus-Kompass\nBitte Passwort eingeben:");
@@ -298,6 +298,8 @@ function GraphFilterPanel(props){
         <button onClick={function(){setShowAdv(function(v){return !v;});}} style={{background:hasAdv?P.goldPale:P.cream,color:hasAdv?P.gold:P.mid,border:"1px solid "+(hasAdv?P.gold:P.creamDim),borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>{showAdv?"↑ Weniger":"↓ Mehr"}{hasAdv?" ●":""}</button>
         {hasAny&&<button onClick={props.onResetFilters} style={{background:P.cream,color:P.mid,border:"1px solid "+P.creamDim,borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>✕</button>}
         <button onClick={props.onResetLayout} style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"50",borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>⟳ Layout</button>
+        <button onClick={props.onResetPins} title="Alle angepinnten Knoten lösen"
+          style={{background:P.cream,color:P.mid,border:"1px solid "+P.creamDim,borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>📌 Pins lösen</button>
       </div>
       <div style={{display:"flex",justifyContent:"flex-end",marginTop:6}}>
         <FilterModeToggle mode={props.filterMode} onChange={props.onFilterMode}/>
@@ -442,7 +444,7 @@ nodes.forEach(function(n){
   n.x = c.x + Math.cos(angle)*dist + (Math.random()-0.5)*60;
   n.y = c.y + Math.sin(angle)*dist + (Math.random()-0.5)*60;
 });
-var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d){return d.id;}).distance(260).strength(0.06)).force("charge",d3.forceManyBody().strength(-1200).distanceMin(15).distanceMax(800)).force("center",d3.forceCenter(w/2,h/2).strength(0.006)).force("collision",d3.forceCollide(function(d){return d.r+28;}).strength(0.9)).force("cluster",function(alpha){nodes.forEach(function(n){var c=ctr[n.ep.spheres[0]];if(c){n.vx-=(n.x-c.x)*alpha*0.018;n.vy-=(n.y-c.y)*alpha*0.018;}});});var bg=svg.append("g");SPHERES.forEach(function(s){var c=ctr[s.id];if(!c)return;bg.append("text").attr("x",c.x).attr("y",c.y).attr("text-anchor","middle").attr("font-size",16).attr("font-family","Georgia,serif").attr("fill",s.color).attr("opacity",0.1).attr("font-weight","bold").text(s.iLabel.split(" ·")[0]);});var lEl=svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke",function(d){return d.col;}).attr("stroke-opacity",function(d){return Math.min(0.13,d.str*0.03);}).attr("stroke-width",function(d){return Math.min(2.5,d.str*0.3);});var nEl=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("cursor","pointer").call(d3.drag().on("start",function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on("drag",function(e,d){d.fx=e.x;d.fy=e.y;}).on("end",function(e,d){if(!e.active)sim.alphaTarget(0);})).on("click",function(e,d){e.stopPropagation();props.onSelect(d.ep);});nEl.append("circle").attr("r",function(d){return d.r;})
+var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d){return d.id;}).distance(260).strength(0.06)).force("charge",d3.forceManyBody().strength(-1200).distanceMin(15).distanceMax(800)).force("center",d3.forceCenter(w/2,h/2).strength(0.006)).force("collision",d3.forceCollide(function(d){return d.r+28;}).strength(0.9)).force("cluster",function(alpha){nodes.forEach(function(n){var c=ctr[n.ep.spheres[0]];if(c){n.vx-=(n.x-c.x)*alpha*0.018;n.vy-=(n.y-c.y)*alpha*0.018;}});});var bg=svg.append("g");SPHERES.forEach(function(s){var c=ctr[s.id];if(!c)return;bg.append("text").attr("x",c.x).attr("y",c.y).attr("text-anchor","middle").attr("font-size",16).attr("font-family","Georgia,serif").attr("fill",s.color).attr("opacity",0.1).attr("font-weight","bold").text(s.iLabel.split(" ·")[0]);});var lEl=svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke",function(d){return d.col;}).attr("stroke-opacity",function(d){return Math.min(0.13,d.str*0.03);}).attr("stroke-width",function(d){return Math.min(2.5,d.str*0.3);});var nEl=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("class","node-group").attr("cursor","pointer").call(d3.drag().on("start",function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on("drag",function(e,d){d.fx=e.x;d.fy=e.y;}).on("end",function(e,d){if(!e.active)sim.alphaTarget(0);})).on("click",function(e,d){e.stopPropagation();props.onSelect(d.ep);});nEl.append("circle").attr("r",function(d){return d.r;})
       .on("mouseover",function(event,d){
         d3.select(this).attr("r",d.r+4).attr("opacity",1);
         var tt=d3.select(".hk-tooltip");tt.style("opacity",1).html(
@@ -453,7 +455,7 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
       .on("mouseout",function(event,d){
         d3.select(this).attr("r",d.r).attr("opacity",0.85);
         d3.select(".hk-tooltip").style("opacity",0);
-      }).attr("fill",function(d){return sc(d.ep.spheres[0])+"bb";}).attr("stroke",function(d){return sc(d.ep.spheres[0]);}).attr("stroke-width",function(d){return props.selected&&epId(d.ep)===epId(props.selected)?3:1.5;}).attr("stroke-dasharray",function(d){return d.ep.type==="frankly"?"3,2":d.ep.type==="roundtable"?"5,2":"none";});nEl.append("text")
+      }).attr("fill",function(d){return sc(d.ep.spheres[0])+"bb";}).attr("stroke",function(d){return sc(d.ep.spheres[0]);}).attr("stroke-width",function(d){var pinned=d.fx!=null;var active=props.selected&&epId(d.ep)===epId(props.selected);return active?3.5:pinned?2.5:1.5;}).attr("stroke-dasharray",function(d){if(d.fx!=null&&d.ep.type!=="frankly"&&d.ep.type!=="roundtable")return "none";return d.ep.type==="frankly"?"3,2":d.ep.type==="roundtable"?"5,2":"none";});nEl.append("text")
     .text(function(d){
       if(d.ep.type==="guest"){
         var parts=d.ep.guest.split(" ");
@@ -467,7 +469,37 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
     .attr("text-anchor","middle")
     .attr("dy",function(d){return d.r+11;})
     .attr("font-weight","bold")
-    .attr("pointer-events","none");sim.on("tick",function(){lEl.attr("x1",function(d){return d.source.x;}).attr("y1",function(d){return d.source.y;}).attr("x2",function(d){return d.target.x;}).attr("y2",function(d){return d.target.y;});nEl.attr("transform",function(d){return "translate("+Math.max(20,Math.min(w-20,d.x))+","+Math.max(20,Math.min(h-20,d.y))+")";});});return function(){sim.stop();};},[props.eps,dims,props.selected]);return <svg ref={ref} width={dims.w} height={dims.h} style={{display:"block",width:"100%"}} onClick={function(){props.onSelect(null);}}/>;}
+    .attr("pointer-events","none");sim.on("tick",function(){lEl.attr("x1",function(d){return d.source.x;}).attr("y1",function(d){return d.source.y;}).attr("x2",function(d){return d.target.x;}).attr("y2",function(d){return d.target.y;});nEl.attr("transform",function(d){return "translate("+Math.max(d.r+8,Math.min(w-d.r-8,d.x))+","+Math.max(d.r+16,Math.min(h-d.r-16,d.y))+")";});});return function(){sim.stop();};
+  },[props.eps,dims]);
+
+  // Separate effect: highlight selected node without re-building sim
+  useEffect(function(){
+    if(!ref.current) return;
+    var svg = d3.select(ref.current);
+    svg.selectAll("g circle")
+      .attr("r", function(d){
+        if(!d) return 8;
+        var isActive = props.selected && epId(props.selected)===epId(d.ep);
+        return isActive ? (d.r+6) : d.r;
+      })
+      .attr("stroke-width", function(d){
+        if(!d) return 1.5;
+        var isActive = props.selected && epId(props.selected)===epId(d.ep);
+        return isActive ? 3.5 : 1.5;
+      })
+      .attr("opacity", function(d){
+        if(!d || !props.selected) return 0.85;
+        var isActive = epId(props.selected)===epId(d.ep);
+        return isActive ? 1 : 0.55;
+      });
+    // Bring active node to front by moving its g element last
+    if(props.selected){
+      svg.selectAll("g.node-group").filter(function(d){
+        return d && epId(d.ep)===epId(props.selected);
+      }).raise();
+    }
+  },[props.selected]);
+  return <svg ref={ref} width={dims.w} height={dims.h} style={{display:"block",width:"100%"}} onClick={function(){props.onSelect(null);}}/>;}
 
 function FilterModeToggle(props) {
   var modes=[
@@ -1139,7 +1171,7 @@ function App(){
       </div>)}
       {tab==="graph"&&(<div style={{display:"grid",gridTemplateColumns:selected?"1fr 300px":"1fr",gap:20}}>
         <div>
-          <GraphFilterPanel filters={gFilters} onChange={handleGFilter} filterMode={filterMode} onFilterMode={setFilterMode} onResetFilters={function(){setGFilters(defaultFilters());}} onResetLayout={function(){setResetKey(function(k){return k+1;});}}/>
+          <GraphFilterPanel filters={gFilters} onChange={handleGFilter} filterMode={filterMode} onFilterMode={setFilterMode} onResetFilters={function(){setGFilters(defaultFilters());}} onResetLayout={function(){setResetKey(function(k){return k+1;});}} onResetPins={function(){setResetKey(function(k){return k+1;});}}/>
           <div style={{color:P.light,fontSize:11,marginBottom:8}}>{gFiltered.length} von {EPISODES.length} Einträge sichtbar</div>
           <div style={{background:P.white,borderRadius:8,border:"1px solid "+P.creamDim,overflow:"hidden"}}>
             <Graph key={resetKey} eps={gFiltered.length>0?gFiltered:EPISODES} selected={selected} onSelect={selToggle}/>
