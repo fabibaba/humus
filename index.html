@@ -487,32 +487,77 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
     });});return function(){sim.stop();};
   },[props.eps,dims]);
 
-  // Separate effect: highlight selected node without re-building sim
+  // Separate effect: highlight selected node + fade unconnected
   useEffect(function(){
     if(!ref.current) return;
     var svg = d3.select(ref.current);
-    svg.selectAll("g circle")
+    if(!props.selected){
+      // No selection: restore everything
+      svg.selectAll("g.node-group")
+        .transition().duration(300)
+        .attr("opacity", 1);
+      svg.selectAll("g.node-group circle")
+        .transition().duration(300)
+        .attr("r", function(d){return d?d.r:8;})
+        .attr("stroke-width", 1.5);
+      svg.selectAll("line")
+        .transition().duration(300)
+        .attr("stroke-opacity", function(d){return Math.min(0.13,d.str*0.03);});
+      return;
+    }
+    // Find connected node IDs
+    var activeId = epId(props.selected);
+    var connectedIds = {};
+    connectedIds[activeId] = true;
+    // Get links data from DOM
+    svg.selectAll("line").each(function(d){
+      if(!d) return;
+      var src = typeof d.source==="object"?d.source.id:d.source;
+      var tgt = typeof d.target==="object"?d.target.id:d.target;
+      if(src===activeId) connectedIds[tgt]=true;
+      if(tgt===activeId) connectedIds[src]=true;
+    });
+    var connCount = Object.keys(connectedIds).length - 1;
+    // Fade unconnected nodes
+    svg.selectAll("g.node-group")
+      .transition().duration(300)
+      .attr("opacity", function(d){
+        if(!d) return 0.08;
+        if(epId(d.ep)===activeId) return 1;
+        return connectedIds[d.id] ? 0.85 : 0.08;
+      });
+    // Pulse active node, slightly enlarge connected
+    svg.selectAll("g.node-group circle")
+      .transition().duration(300)
       .attr("r", function(d){
         if(!d) return 8;
-        var isActive = props.selected && epId(props.selected)===epId(d.ep);
-        return isActive ? (d.r+6) : d.r;
+        if(epId(d.ep)===activeId) return d.r+6;
+        return connectedIds[d.id] ? d.r+2 : d.r;
       })
       .attr("stroke-width", function(d){
         if(!d) return 1.5;
-        var isActive = props.selected && epId(props.selected)===epId(d.ep);
-        return isActive ? 3.5 : 1.5;
-      })
-      .attr("opacity", function(d){
-        if(!d || !props.selected) return 0.85;
-        var isActive = epId(props.selected)===epId(d.ep);
-        return isActive ? 1 : 0.55;
+        if(epId(d.ep)===activeId) return 3.5;
+        return connectedIds[d.id] ? 2 : 1;
       });
-    // Bring active node to front by moving its g element last
-    if(props.selected){
-      svg.selectAll("g.node-group").filter(function(d){
-        return d && epId(d.ep)===epId(props.selected);
-      }).raise();
-    }
+    // Highlight connected links, fade others
+    svg.selectAll("line")
+      .transition().duration(300)
+      .attr("stroke-opacity", function(d){
+        if(!d) return 0;
+        var src = typeof d.source==="object"?d.source.id:d.source;
+        var tgt = typeof d.target==="object"?d.target.id:d.target;
+        return (src===activeId||tgt===activeId) ? 0.7 : 0.02;
+      })
+      .attr("stroke-width", function(d){
+        if(!d) return 0.5;
+        var src = typeof d.source==="object"?d.source.id:d.source;
+        var tgt = typeof d.target==="object"?d.target.id:d.target;
+        return (src===activeId||tgt===activeId) ? 2 : 0.5;
+      });
+    // Show connection count in label
+    svg.selectAll("g.node-group").filter(function(d){
+      return d && epId(d.ep)===activeId;
+    }).raise();
   },[props.selected]);
   return <svg ref={ref} width={dims.w} height={dims.h} style={{display:"block",width:"100%"}} onClick={function(){props.onSelect(null);}}/>;}
 
@@ -1052,6 +1097,7 @@ var FRAGMENTS = [{"id": "f1", "type": "konzept", "title": "Hospicing Modernity",
 function Personen(props) {
   var [search, setSearch] = useState("");
   var [sel, setSel] = useState(null);
+  var [selPerson, setSelPerson] = useState(null);
   var [hemF, setHemF] = useState(null);
 
   // Build persons from episodes dynamically
@@ -1122,18 +1168,78 @@ function Personen(props) {
               <span style={{background:P.creamDim,color:P.mid,fontSize:9,padding:"1px 5px",borderRadius:6}}>{p.hemisphere||"?"}</span>
               <span style={{background:P.tealPale,color:P.teal,fontSize:9,padding:"1px 5px",borderRadius:6}}>{eps.length} Eintr.</span>
             </div>
-            {act&&eps.length>0&&<div style={{marginTop:8,borderTop:"1px solid "+P.creamDim,paddingTop:6}}>
+            {act&&<div style={{marginTop:8,borderTop:"1px solid "+P.creamDim,paddingTop:6}}>
               {eps.slice(0,4).map(function(e){return(
-                <div key={epId(e)} onClick={function(ev){ev.stopPropagation();props.onNavEp(e);}}
-                  style={{color:P.teal,fontSize:11,padding:"2px 0",cursor:"pointer",borderBottom:"1px solid "+P.creamDim}}>
-                  {(e.title||e.title_en||"").substring(0,42)}…
-                </div>
+                <div key={epId(e)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"2px 0",borderBottom:"1px solid "+P.creamDim+"60"}}><span style={{color:P.teal,fontSize:11,cursor:"pointer",flex:1}} onClick={function(ev){ev.stopPropagation();props.onNavEp(e);}}>{(e.title||e.title_en||"").substring(0,36)}…</span>{e.yt&&<a href={"https://youtu.be/"+e.yt} target="_blank" rel="noreferrer" onClick={function(ev){ev.stopPropagation();}} style={{color:P.light,fontSize:9,textDecoration:"none",border:"1px solid "+P.creamDim,borderRadius:3,padding:"1px 4px",marginLeft:4,flexShrink:0}}>▶</a>}</div>
               );})}
-              {eps.length>4&&<div style={{color:P.light,fontSize:10,marginTop:2}}>+{eps.length-4} weitere</div>}
+              {eps.length>3&&<div style={{color:P.light,fontSize:10,marginTop:2}}>+{eps.length-3} weitere…</div>}
+              <button onClick={function(ev){ev.stopPropagation();setSelPerson(p);}} style={{marginTop:5,background:"none",border:"1px solid "+col+"50",color:col,borderRadius:4,fontSize:10,padding:"2px 8px",cursor:"pointer",width:"100%"}}>Vollständiges Profil ({eps.length}) →</button>
             </div>}
           </div>
         );
       })}
+
+  {selPerson&&<div style={{position:"fixed",top:0,right:0,bottom:0,width:Math.min(440,window.innerWidth),background:P.white,borderLeft:"3px solid "+(gC[selPerson.generation]||P.teal),boxShadow:"-4px 0 24px rgba(0,0,0,0.12)",zIndex:200,overflowY:"auto",padding:"20px 18px"}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div><div style={{color:gC[selPerson.generation]||P.teal,fontFamily:"Georgia,serif",fontSize:18,fontWeight:"bold"}}>{selPerson.name}</div>
+      <div style={{color:P.mid,fontSize:11,marginTop:2}}>{selPerson.role}</div></div>
+      <button onClick={function(){setSelPerson(null);}} style={{background:"none",border:"none",color:P.mid,cursor:"pointer",fontSize:22}}>x</button>
+    </div>
+    {(function(){
+      var col=gC[selPerson.generation]||P.teal;
+      var pEps=EPISODES.filter(function(e){return selPerson.episodes.indexOf(epId(e))>=0;});
+      var customFrags=JSON.parse(localStorage.getItem("hk-custom-frags")||"[]");
+      var allFrags=FRAGMENTS.concat(customFrags);
+      var lastName=selPerson.name.split(" ").pop().toLowerCase();
+      var relFrags=allFrags.filter(function(f){
+        var inEps=pEps.some(function(ep){return (f.episodes||[]).indexOf(ep.id||epId(ep))>=0;});
+        var inTitle=(f.title||"").toLowerCase().indexOf(lastName)>=0;
+        return inEps||inTitle;
+      }).slice(0,8);
+      var merkFragen=JSON.parse(localStorage.getItem("hk-questions")||"[]")
+        .filter(function(q){return q._glossar&&pEps.some(function(ep){return q.epIds.indexOf(epId(ep))>=0;});});
+      return(<div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+          <span style={{background:col+"18",color:col,fontSize:10,padding:"2px 8px",borderRadius:10}}>{selPerson.generation}</span>
+          <span style={{background:P.creamDim,color:P.mid,fontSize:10,padding:"2px 8px",borderRadius:10}}>{selPerson.hemisphere}</span>
+          <span style={{background:P.tealPale,color:P.teal,fontSize:10,padding:"2px 8px",borderRadius:10}}>{pEps.length} Episoden</span>
+          {relFrags.length>0&&<span style={{background:"#9a70c820",color:"#9a70c8",fontSize:10,padding:"2px 8px",borderRadius:10}}>{relFrags.length} Glossar</span>}
+        </div>
+        <div style={{marginBottom:14}}>
+          <div style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Episoden</div>
+          {pEps.map(function(e){
+            var c=sc((e.spheres&&e.spheres[0])||null);
+            return(<div key={epId(e)} style={{padding:"6px 0",borderBottom:"1px solid "+P.creamDim+"60"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{flex:1,cursor:"pointer"}} onClick={function(){setSelPerson(null);props.onNavEp(e);}}>
+                  <div style={{color:c,fontSize:12,fontWeight:"bold"}}>{e.guest||e.title}</div>
+                  <div style={{color:P.mid,fontSize:10}}>{(e.title||"").substring(0,55)}</div>
+                </div>
+                {e.yt&&<a href={"https://youtu.be/"+e.yt} target="_blank" rel="noreferrer" style={{color:P.teal,fontSize:10,textDecoration:"none",border:"1px solid "+P.teal+"30",borderRadius:4,padding:"2px 6px",marginLeft:6,flexShrink:0}}>YT</a>}
+              </div>
+            </div>);
+          })}
+        </div>
+        {relFrags.length>0&&<div style={{marginBottom:14}}>
+          <div style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Glossar-Fragmente</div>
+          {relFrags.map(function(f){
+            var ft=FRAGMENT_TYPES.find(function(t){return t.id===f.type;});
+            return(<div key={f.id} style={{padding:"5px 8px",background:P.cream,borderRadius:4,marginBottom:4,borderLeft:"2px solid "+(ft?ft.color:P.teal),fontSize:11,color:P.dark}}>
+              {ft?ft.icon:""} {f.title.substring(0,65)}{f.title.length>65?"...":""}
+            </div>);
+          })}
+        </div>}
+        {merkFragen.length>0&&<div style={{marginBottom:14}}>
+          <div style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Werkliste-Fragen</div>
+          {merkFragen.map(function(q){return(
+            <div key={q.id} style={{padding:"5px 8px",background:P.tealPale,borderRadius:4,marginBottom:4,borderLeft:"2px solid "+P.teal,fontSize:11,color:P.dark}}>
+              {q.text.substring(0,65)}...
+            </div>
+          );})}        </div>}
+        {props.onBookmark&&<button onClick={function(){pEps.forEach(function(e){props.onBookmark(e);});setSelPerson(null);}} style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"50",borderRadius:6,padding:"6px 14px",fontSize:12,cursor:"pointer",marginTop:8}}>Alle in Werkliste</button>}
+      </div>);
+    })()}
+  </div>}
     </div>
   </div>);
 }
@@ -1254,15 +1360,18 @@ function Glossar(props) {
         borderLeft:"3px solid "+col,paddingLeft:12,marginBottom:12}}>
         "{selectedFrag.quote_en}"
       </div>}
-      {(selectedFrag._yt||selectedFrag._guest)&&<div style={{marginBottom:10}}>
-        <div style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Originalquelle</div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {selectedFrag._guest&&<span style={{color:P.mid,fontSize:12}}>{selectedFrag._guest}</span>}
-          {selectedFrag._yt&&<a href={"https://youtu.be/"+selectedFrag._yt} target="_blank" rel="noreferrer"
-            style={{color:P.teal,fontSize:11,textDecoration:"none",border:"1px solid "+P.teal+"40",
-              borderRadius:4,padding:"2px 8px"}}>▶ YouTube</a>}
-        </div>
-      </div>}
+      <div style={{marginBottom:10}}>
+        <div style={{color:P.light,fontSize:10,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Quellen</div>
+        {selectedFrag._guest&&<div style={{color:P.mid,fontSize:12,fontWeight:"bold",marginBottom:4}}>{selectedFrag._guest}{selectedFrag._yt&&<a href={"https://youtu.be/"+selectedFrag._yt} target="_blank" rel="noreferrer" style={{color:P.teal,fontSize:11,textDecoration:"none",border:"1px solid "+P.teal+"40",borderRadius:4,padding:"1px 8px",marginLeft:8}}>▶ YouTube</a>}</div>}
+        {relEps.map(function(ep){
+          var c=sc((ep.spheres&&ep.spheres[0])||null);
+          return(<div key={epId(ep)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"3px 0",borderBottom:"1px solid "+P.creamDim+"60"}}>
+            <span style={{color:c,fontSize:11,cursor:"pointer",flex:1}} onClick={function(){if(props.onNavEp){setSelectedFrag(null);props.onNavEp(ep);}}}>{ep.type==="guest"?ep.guest:(ep.title||"").substring(0,40)+"…"}</span>
+            {ep.yt&&<a href={"https://youtu.be/"+ep.yt} target="_blank" rel="noreferrer" style={{color:P.light,fontSize:9,textDecoration:"none",border:"1px solid "+P.creamDim,borderRadius:3,padding:"1px 5px",marginLeft:6,flexShrink:0}}>▶</a>}
+          </div>);
+        })}
+      </div>
+
       {(selectedFrag.keywords||[]).length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}}>
         {selectedFrag.keywords.map(function(k){return(
           <span key={k} style={{background:col+"18",color:col,fontSize:10,padding:"2px 8px",borderRadius:10}}>{k}</span>
@@ -1340,8 +1449,23 @@ function Glossar(props) {
             "GLOSSAR: "+selectedFrag.title,
             selectedFrag.desc||"",
             "═══════════════════════════════",""];
-          if(zitate.length>0){lines.push("ZITATE:");zitate.forEach(function(z){lines.push("","❝ "+z.text,"— "+(z.guest||"")+(z.youtube?" "+z.youtube:""));});}
-          if(relEps.length>0){lines.push("","EPISODEN:");relEps.forEach(function(ep){lines.push("• "+(ep.guest||ep.title||"")+(ep.yt?" https://youtu.be/"+ep.yt:""));});}
+          // Source link
+          if(selectedFrag._guest||selectedFrag._yt){
+            lines.push("QUELLE: "+(selectedFrag._guest||"")+(selectedFrag._yt?" → https://youtu.be/"+selectedFrag._yt:""),"");
+          }
+          // Original quote
+          if(selectedFrag.quote_en){lines.push("ORIGINALZITAT:","❝ "+selectedFrag.quote_en,"");}
+          if(zitate.length>0){lines.push("ANGEHEFTETE ZITATE:");zitate.forEach(function(z){
+            lines.push("","❝ "+z.text,
+              "  — "+(z.guest||"")+(z.title?" ("+z.title.substring(0,50)+")":""),
+              z.youtube?"  ▶ "+z.youtube:"");
+          });}
+          if(relEps.length>0){lines.push("","VERKNÜPFTE EPISODEN:");relEps.forEach(function(ep){
+            lines.push(
+              "• "+(ep.guest||ep.title||""),
+              "  "+(ep.title||ep.title_en||"").substring(0,80),
+              ep.yt?"  ▶ https://youtu.be/"+ep.yt:"");
+          });}
           var blob=new Blob([lines.join("\n")],{type:"text/plain"});
           var a=document.createElement("a");
           a.href=URL.createObjectURL(blob);
