@@ -1140,6 +1140,8 @@ function Glossar(props) {
   var [activeType, setActiveType] = useState(null);
   var [search, setSearch] = useState("");
   var [selectedFrag, setSelectedFrag] = useState(null);
+  var [showOwn, setShowOwn] = useState(false);
+  var [showLive, setShowLive] = useState(false);
   // Load custom fragments + Merkliste questions marked as Glossar
   var customFrags = JSON.parse(localStorage.getItem("hk-custom-frags")||"[]");
   var merklisteFragen = JSON.parse(localStorage.getItem("hk-questions")||"[]")
@@ -1162,6 +1164,8 @@ function Glossar(props) {
   var allFragments = FRAGMENTS.concat(customFrags).concat(merklisteFragen);
 
   var filtered = allFragments.filter(function(f){
+    if(showOwn && !f._custom && !f._fromMerkliste) return false;
+    if(showLive && !f._fromMerkliste) return false;
     if(activeType && f.type !== activeType) return false;
     if(search.trim()){var q=search.toLowerCase();return f.title.toLowerCase().indexOf(q)>=0||f.desc.toLowerCase().indexOf(q)>=0;}
     return true;
@@ -1179,6 +1183,14 @@ function Glossar(props) {
           {t.icon} {t.label}
         </button>);
       })}
+      {customFrags.length>0&&<button onClick={function(){setShowOwn(!showOwn);setShowLive(false);}}
+        style={{background:showOwn?"#9a70c820":P.white,color:"#9a70c8",border:"1px solid "+(showOwn?"#9a70c8":P.creamDim),borderRadius:14,padding:"3px 9px",fontSize:11,cursor:"pointer"}}>
+        ✏️ Eigene ({customFrags.length})
+      </button>}
+      {merklisteFragen.length>0&&<button onClick={function(){setShowLive(!showLive);setShowOwn(false);}}
+        style={{background:showLive?P.tealPale:P.white,color:P.teal,border:"1px solid "+(showLive?P.teal:P.creamDim),borderRadius:14,padding:"3px 9px",fontSize:11,cursor:"pointer"}}>
+        🔴 Live ({merklisteFragen.length})
+      </button>}
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:10}}>
       {filtered.map(function(f){
