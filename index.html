@@ -1571,6 +1571,79 @@ function App(){
   var [transcripts,setTranscripts]=useState(null);
   var [transcriptsLoading,setTranscriptsLoading]=useState(false);
 
+
+  // ── SYNC HELPERS ─────────────────────────────────────────────────
+  function exportSession(){
+    var data={
+      merkliste:merkliste,
+      zitate:zitate,
+      discoveries:discoveries,
+      questions:JSON.parse(localStorage.getItem("hk-questions")||"[]"),
+      comments:JSON.parse(localStorage.getItem("hk-comments")||"{}"),
+      customFrags:JSON.parse(localStorage.getItem("hk-custom-frags")||"[]"),
+      exportedAt:new Date().toISOString(),
+      version:1,
+    };
+    var json=JSON.stringify(data);
+    var blob=new Blob([json],{type:"application/json"});
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="humus-session-"+new Date().toISOString().slice(0,10)+".json";
+    a.click();
+  }
+
+  function importSession(file){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        var data=JSON.parse(e.target.result);
+        if(data.merkliste) setMerkliste(data.merkliste);
+        if(data.zitate) setZitate(data.zitate);
+        if(data.discoveries) setDiscoveries(data.discoveries);
+        if(data.questions) localStorage.setItem("hk-questions",JSON.stringify(data.questions));
+        if(data.comments) localStorage.setItem("hk-comments",JSON.stringify(data.comments));
+        if(data.customFrags) localStorage.setItem("hk-custom-frags",JSON.stringify(data.customFrags));
+        alert("✅ Sitzung importiert! Seite wird neu geladen.");
+        window.location.reload();
+      } catch(err){alert("❌ Import fehlgeschlagen: "+err.message);}
+    };
+    reader.readAsText(file);
+  }
+
+  function shareSession(){
+    var data={
+      m:merkliste,
+      z:zitate.map(function(z){return{id:z.id,text:z.text.substring(0,200),guest:z.guest||"",title:z.title||"",youtube:z.youtube||"",timestamp:z.timestamp,ytId:z.ytId};}),
+      q:JSON.parse(localStorage.getItem("hk-questions")||"[]"),
+    };
+    var json=JSON.stringify(data);
+    var compressed=btoa(encodeURIComponent(json));
+    var url=window.location.origin+window.location.pathname+"?s="+compressed;
+    if(url.length>8000){
+      alert("⚠ Zu viele Daten für URL-Teilen ("+url.length+" Zeichen).\nBitte Export/Import nutzen.");
+      return;
+    }
+    navigator.clipboard&&navigator.clipboard.writeText(url).then(function(){
+      alert("✅ Link kopiert! ("+url.length+" Zeichen)\nAuf anderem Gerät öffnen um Sitzung wiederherzustellen.");
+    }).catch(function(){prompt("Link kopieren:",url);});
+  }
+
+  // Load shared session from URL on startup
+  useEffect(function(){
+    var params=new URLSearchParams(window.location.search);
+    var s=params.get("s");
+    if(!s) return;
+    try{
+      var data=JSON.parse(decodeURIComponent(atob(s)));
+      if(data.m) setMerkliste(data.m);
+      if(data.z) setZitate(data.z);
+      if(data.q) localStorage.setItem("hk-questions",JSON.stringify(data.q));
+      // Remove ?s= from URL without reload
+      window.history.replaceState({},"",window.location.pathname);
+      setTimeout(function(){alert("✅ Geteilte Sitzung geladen!");},500);
+    } catch(e){console.log("Session load error:",e);}
+  },[]);
+
   function loadTranscripts(){
     if(transcripts||transcriptsLoading) return;
     setTranscriptsLoading(true);
@@ -1633,6 +1706,15 @@ function App(){
         </button>
         <span style={{color:P.teal,fontSize:16,fontWeight:"bold"}}>🌱 Humus-Kompass</span>
         <span style={{color:P.light,fontSize:11}}>{EPISODES.length} Einträge</span>
+        <div style={{display:"flex",gap:4,marginLeft:"auto"}}>
+          <button onClick={exportSession} title="Sitzung exportieren"
+            style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"40",borderRadius:6,padding:"3px 9px",fontSize:10,cursor:"pointer"}}>💾 Export</button>
+          <button onClick={shareSession} title="Link teilen"
+            style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"40",borderRadius:6,padding:"3px 9px",fontSize:10,cursor:"pointer"}}>🔗 Teilen</button>
+          <label style={{background:P.creamDim,color:P.mid,border:"1px solid "+P.creamDim,borderRadius:6,padding:"3px 9px",fontSize:10,cursor:"pointer"}}>
+            📥 Import<input type="file" accept=".json" style={{display:"none"}} onChange={function(e){if(e.target.files[0])importSession(e.target.files[0]);}}/>
+          </label>
+        </div>
       </div>
       <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",flexWrap:"wrap"}}>{TABS.map(function(t){return(<button key={t[0]} onClick={function(){setTab(t[0]);setNavHistory([]);}} style={{background:"transparent",color:tab===t[0]?P.teal:P.mid,border:"none",borderBottom:"2px solid "+(tab===t[0]?P.teal:"transparent"),padding:"7px 12px",cursor:"pointer",fontSize:11,fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{t[1]}</button>);})}</div>
