@@ -282,6 +282,7 @@ function GraphFilterPanel(props){
       <div style={{marginLeft:"auto",display:"flex",gap:5}}>
         <button onClick={function(){setShowAdv(function(v){return !v;});}} style={{background:hasAdv?P.goldPale:P.cream,color:hasAdv?P.gold:P.mid,border:"1px solid "+(hasAdv?P.gold:P.creamDim),borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>{showAdv?"↑ Weniger":"↓ Mehr"}{hasAdv?" ●":""}</button>
         {hasAny&&<button onClick={props.onResetFilters} style={{background:P.cream,color:P.mid,border:"1px solid "+P.creamDim,borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>✕</button>}
+        {(props.multiSel&&props.multiSel.length>0)&&<button onClick={function(){props.onClearMulti&&props.onClearMulti();}} style={{background:"#d4a84b20",color:"#d4a84b",border:"1px solid #d4a84b50",borderRadius:14,padding:"3px 9px",fontSize:11,cursor:"pointer"}}>✕ {props.multiSel.length} Auswahl aufheben</button>}
         <button onClick={props.onResetLayout} style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"50",borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>⟳ Layout</button>
         <button onClick={props.onResetPins} title="Alle angepinnten Knoten lösen"
           style={{background:P.cream,color:P.mid,border:"1px solid "+P.creamDim,borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>📌 Pins lösen</button>
@@ -354,8 +355,9 @@ function describeConnection(ep, other) {
 function DetailPanel(props){var ep=props.ep,col=sc(ep.spheres[0]),pal=sp(ep.spheres[0]);var connected=EPISODES.filter(function(o){if(epId(o)===epId(ep))return false;return ep.spheres.filter(function(s){return o.spheres.indexOf(s)>=0;}).length+ep.felder.filter(function(f){return o.felder.indexOf(f)>=0;}).length>=2;}).slice(0,5);var gL={boomer:"Boomer",genx:"Gen X",millennial:"Millennial",genz:"Gen Z"};var rL={eu:"Europa",na:"Nordamerika",la:"Lateinamerika",as:"Asien",af:"Afrika",oz:"Ozeanien"};var hL={nord:"Glob. Norden",süd:"Glob. Süden"};var geL={w:"♀",m:"♂",nb:"⚧",div:"⚥"};return(<div style={{background:pal,border:"1px solid "+col+"40",borderRadius:8,padding:18,position:"sticky",top:10}}><div style={{marginBottom:8}}>
   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
     <div style={{color:col,fontFamily:"Georgia,serif",fontSize:15,fontWeight:"bold",flex:1,paddingRight:8,lineHeight:1.3}}>
-      {ep.type==="guest"?ep.guest:ep.title.substring(0,45)+"…"}
+      {ep.title||ep.title_en||ep.guest}
     </div>
+    {ep.type==="guest"&&ep.guest&&<div style={{color:col,fontSize:12,opacity:0.8,marginTop:2}}>👤 {ep.guest}</div>}
     <div style={{display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
       {props.onPrev&&<button onClick={props.onPrev} title="Vorherige Karte"
         style={{background:P.creamDim,border:"1px solid "+P.creamDim,borderRadius:4,color:P.mid,cursor:"pointer",fontSize:14,padding:"2px 8px",lineHeight:1}}>‹</button>}
@@ -408,7 +410,7 @@ function DetailPanel(props){var ep=props.ep,col=sc(ep.spheres[0]),pal=sp(ep.sphe
           <div style={{color:P.light,fontSize:10,fontStyle:"italic"}}>↔ {describeConnection(ep,c)}</div>
         </div>
       );})}
-    </div>}<div style={{marginTop:10,paddingTop:10,borderTop:"1px solid "+col+"20",display:"flex",gap:12}}>{ep.yt&&<a href={"https:"+"//"+"youtu.be/"+ep.yt} target="_blank" rel="noreferrer" style={{color:col,fontSize:11}}>▶ YouTube ↗</a>}<a href={"https:"+"//"+"www.thegreatsimplification.com"+ep.url} target="_blank" rel="noreferrer" style={{color:P.teal,fontSize:11}}>→ TGS ↗</a></div></div>);}
+    </div>}<div style={{marginTop:10,paddingTop:10,borderTop:"1px solid "+col+"20",display:"flex",gap:12}}>{ep.yt&&<a href={"https:"+"//"+"youtu.be/"+ep.yt} target="_blank" rel="noreferrer" style={{color:col,fontSize:11}}>▶ YouTube ↗</a>}<a href={"https:"+"//"+"www.thegreatsimplification.com"+ep.url} target="_blank" rel="noreferrer" style={{color:P.teal,fontSize:11}}>→ TGS ↗</a><button onClick={function(){var lines=[ep.title||ep.title_en||ep.guest,"👤 "+(ep.guest||""),ep.role||"",ep.quote_en?"❝ "+ep.quote_en:"",ep.quote?"❝ "+ep.quote:"","","Sphären: "+ep.spheres.join(", "),"Felder: "+(ep.felder||[]).join(", "),"",ep.yt?"▶ https://youtu.be/"+ep.yt:"","→ TGS: https://www.thegreatsimplification.com"+(ep.url||"")].filter(Boolean).join("\n");var conn=EPISODES.filter(function(o){if(epId(o)===epId(ep))return false;return ep.spheres.filter(function(s){return o.spheres.indexOf(s)>=0;}).length+(ep.felder||[]).filter(function(f){return (o.felder||[]).indexOf(f)>=0;}).length>=2;}).slice(0,5);if(conn.length>0){lines+="\n\nRESONANTE EINTRÄGE:\n";lines+=conn.map(function(c){return "• "+(c.title||c.title_en||c.guest)+(c.yt?"\n  https://youtu.be/"+c.yt:"");}).join("\n");}var blob=new Blob([lines],{type:"text/plain"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(ep.guest||"ep").replace(/\s+/g,"-")+".txt";a.click();}} style={{background:P.goldPale,color:P.gold,border:"1px solid "+P.gold+"50",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",marginLeft:4}}>📤</button></div></div>);}
 
 function Graph(props){var ref=useRef(null);var [dims,setDims]=useState({w:680,h:440});useEffect(function(){var el=ref.current&&ref.current.parentElement;if(!el)return;var ro=new ResizeObserver(function(e){var w=e[0].contentRect.width;setDims({w:w,h:Math.max(600,Math.min(960,w*1.05))});});ro.observe(el);return function(){ro.disconnect();};},[]);useEffect(function(){if(!ref.current)return;
   // Ensure tooltip exists
@@ -430,7 +432,7 @@ var sorted = nodes.slice().sort(function(a,b){
   return (connectionCount[b.id]||0)-(connectionCount[a.id]||0);
 });
 var pentagonNodes = sorted.slice(0,5);
-var pentagonR = Math.min(w,h)*0.38;
+var pentagonR = Math.min(w,h)*0.46;
 pentagonNodes.forEach(function(n,i){
   var angle = (i/5)*Math.PI*2 - Math.PI/2; // start at top
   n.x = w/2 + Math.cos(angle)*pentagonR;
@@ -450,7 +452,7 @@ nodes.forEach(function(n){
   n.x = c.x + Math.cos(angle)*dist + (Math.random()-0.5)*40;
   n.y = c.y + Math.sin(angle)*dist + (Math.random()-0.5)*40;
 });
-var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d){return d.id;}).distance(260).strength(0.06)).force("charge",d3.forceManyBody().strength(-1200).distanceMin(15).distanceMax(800)).force("center",d3.forceCenter(w/2,h/2).strength(0.006)).force("collision",d3.forceCollide(function(d){return d.r+28;}).strength(0.9)).force("cluster",function(alpha){nodes.forEach(function(n){var c=ctr[n.ep.spheres[0]];if(c){n.vx-=(n.x-c.x)*alpha*0.018;n.vy-=(n.y-c.y)*alpha*0.018;}});});var bg=svg.append("g");SPHERES.forEach(function(s){var c=ctr[s.id];if(!c)return;bg.append("text").attr("x",c.x).attr("y",c.y).attr("text-anchor","middle").attr("font-size",16).attr("font-family","Georgia,serif").attr("fill",s.color).attr("opacity",0.1).attr("font-weight","bold").text(s.iLabel.split(" ·")[0]);});var lEl=svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke",function(d){return d.col;}).attr("stroke-opacity",function(d){return Math.min(0.13,d.str*0.03);}).attr("stroke-width",function(d){return Math.min(2.5,d.str*0.3);});var nEl=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("class","node-group").attr("cursor","pointer").call(d3.drag().on("start",function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on("drag",function(e,d){d.fx=e.x;d.fy=e.y;}).on("end",function(e,d){if(!e.active)sim.alphaTarget(0);})).on("click",function(e,d){e.stopPropagation();props.onSelect(d.ep);});nEl.append("circle").attr("r",function(d){return d.r;})
+var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d){return d.id;}).distance(260).strength(0.06)).force("charge",d3.forceManyBody().strength(-1200).distanceMin(15).distanceMax(800)).force("center",d3.forceCenter(w/2,h/2).strength(0.006)).force("collision",d3.forceCollide(function(d){return d.r+28;}).strength(0.9)).force("cluster",function(alpha){nodes.forEach(function(n){var c=ctr[n.ep.spheres[0]];if(c){n.vx-=(n.x-c.x)*alpha*0.018;n.vy-=(n.y-c.y)*alpha*0.018;}});});var bg=svg.append("g");SPHERES.forEach(function(s){var c=ctr[s.id];if(!c)return;bg.append("text").attr("x",c.x).attr("y",c.y).attr("text-anchor","middle").attr("font-size",16).attr("font-family","Georgia,serif").attr("fill",s.color).attr("opacity",0.1).attr("font-weight","bold").text(s.iLabel.split(" ·")[0]);});var lEl=svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke",function(d){return d.col;}).attr("stroke-opacity",function(d){return Math.min(0.13,d.str*0.03);}).attr("stroke-width",function(d){return Math.min(2.5,d.str*0.3);});var nEl=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("class","node-group").attr("cursor","pointer").call(d3.drag().on("start",function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on("drag",function(e,d){d.fx=e.x;d.fy=e.y;}).on("end",function(e,d){if(!e.active)sim.alphaTarget(0);})).on("click",function(e,d){e.stopPropagation();props.onSelect(d.ep,e.shiftKey);});nEl.append("circle").attr("r",function(d){return d.r;})
       .on("mouseover",function(event,d){
         d3.select(this).attr("r",d.r+4).attr("opacity",1);
         var tt=d3.select(".hk-tooltip");tt.style("opacity",1).html(
@@ -463,9 +465,16 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
         d3.select(".hk-tooltip").style("opacity",0);
       }).attr("fill",function(d){return sc(d.ep.spheres[0])+"bb";}).attr("stroke",function(d){return sc(d.ep.spheres[0]);}).attr("stroke-width",function(d){var pinned=d.fx!=null;var active=props.selected&&epId(d.ep)===epId(props.selected);return active?3.5:pinned?2.5:1.5;}).attr("stroke-dasharray",function(d){if(d.fx!=null&&d.ep.type!=="frankly"&&d.ep.type!=="roundtable")return "none";return d.ep.type==="frankly"?"3,2":d.ep.type==="roundtable"?"5,2":"none";});nEl.append("text")
     .text(function(d){
+      // Show first meaningful word of title, or last name
+      var title = d.ep.title||d.ep.title_en||"";
+      if(title && title.length>2){
+        // Get first 2 words of title
+        var words = title.split(" ").filter(function(w){return w.length>2;});
+        return words.slice(0,2).join(" ").substring(0,16);
+      }
       if(d.ep.type==="guest"){
         var parts=d.ep.guest.split(" ");
-        return parts.length>1?parts[parts.length-1]:parts[0];
+        return parts[parts.length-1];
       }
       return TL[d.ep.type]+(d.ep.num||"");
     })
@@ -507,6 +516,9 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
     }
     // Find connected node IDs
     var activeId = epId(props.selected);
+    var multiIds = {};
+    (props.multiSel||[]).forEach(function(id){multiIds[id]=true;});
+    var hasMulti = (props.multiSel||[]).length > 0;
     var connectedIds = {};
     connectedIds[activeId] = true;
     // Get links data from DOM
@@ -523,6 +535,23 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
       .transition().duration(300)
       .attr("opacity", function(d){
         if(!d) return 0.08;
+        if(hasMulti){
+          // Multi-select: show only nodes connected to ALL selected
+          var inAll = Object.keys(multiIds).length > 0 &&
+            Object.keys(multiIds).every(function(mid){
+              // check if d.id is connected to mid via links
+              var connected = false;
+              svg.selectAll("line").each(function(l){
+                if(!l) return;
+                var src=typeof l.source==="object"?l.source.id:l.source;
+                var tgt=typeof l.target==="object"?l.target.id:l.target;
+                if((src===mid&&tgt===d.id)||(tgt===mid&&src===d.id)) connected=true;
+              });
+              return connected || d.id===mid;
+            });
+          if(multiIds[d.id]) return 1;
+          return inAll ? 0.9 : 0.05;
+        }
         if(epId(d.ep)===activeId) return 1;
         return connectedIds[d.id] ? 0.85 : 0.08;
       });
@@ -531,6 +560,7 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
       .transition().duration(300)
       .attr("r", function(d){
         if(!d) return 8;
+        if(hasMulti && multiIds[d.id]) return d.r+5;
         if(epId(d.ep)===activeId) return d.r+6;
         return connectedIds[d.id] ? d.r+2 : d.r;
       })
@@ -552,7 +582,7 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
         if(!d) return 0.5;
         var src = typeof d.source==="object"?d.source.id:d.source;
         var tgt = typeof d.target==="object"?d.target.id:d.target;
-        return (src===activeId||tgt===activeId) ? 2 : 0.5;
+        return (src===activeId||tgt===activeId) ? 1.2 : 0.3;
       });
     // Show connection count in label
     svg.selectAll("g.node-group").filter(function(d){
@@ -1816,6 +1846,7 @@ function App(){
       .catch(function(){setTranscriptsLoading(false);});
   }
   var [discoveries,setDiscoveries]=useState(function(){return loadLS("hk-discoveries",[]);});
+  var [multiSel,setMultiSel]=useState([]);  // array of epIds for multi-select
   var [pins,setPins]=useState(function(){return loadLS("hk-pins",[]);});
   var [tab,setTab]=useState("kompass");
   var [sphere,setSphere]=useState(null);
@@ -1919,10 +1950,21 @@ function App(){
       </div>)}
       {tab==="graph"&&(<div style={{display:"grid",gridTemplateColumns:selected?"1fr 300px":"1fr",gap:20}}>
         <div>
-          <GraphFilterPanel filters={gFilters} onChange={handleGFilter} filterMode={filterMode} onFilterMode={setFilterMode} onResetFilters={function(){setGFilters(defaultFilters());}} onResetLayout={function(){setResetKey(function(k){return k+1;});}} onResetPins={function(){setResetKey(function(k){return k+1;});}}/>
+          <GraphFilterPanel filters={gFilters} onChange={handleGFilter} filterMode={filterMode} onFilterMode={setFilterMode} onResetFilters={function(){setGFilters(defaultFilters());}} onResetLayout={function(){setResetKey(function(k){return k+1;});}} onResetPins={function(){setResetKey(function(k){return k+1;});}} onClearMulti={function(){setMultiSel([]);}}/>
           <div style={{color:P.light,fontSize:11,marginBottom:8}}>{gFiltered.length} von {EPISODES.length} Einträge sichtbar</div>
           <div style={{background:P.white,borderRadius:8,border:"1px solid "+P.creamDim,overflow:"hidden"}}>
-            <Graph key={resetKey} eps={gFiltered.length>0?gFiltered:EPISODES} selected={selected} onSelect={selToggle}/>
+            <Graph key={resetKey} eps={gFiltered.length>0?gFiltered:EPISODES} selected={selected} multiSel={multiSel} onSelect={function(ep,shiftKey){
+        if(shiftKey){
+          var id=epId(ep);
+          setMultiSel(function(prev){
+            if(prev.indexOf(id)>=0) return prev.filter(function(x){return x!==id;});
+            return prev.concat([id]);
+          });
+        } else {
+          setMultiSel([]);
+          selToggle(ep);
+        }
+      }}/>
           </div>
           <div style={{color:P.light,fontSize:10,marginTop:6,textAlign:"center"}}>Knoten ziehen → bleiben fixiert · ⟳ Layout für Reset</div>
         </div>
