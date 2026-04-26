@@ -1536,31 +1536,62 @@ function VolltextSuche(props) {
     var hits = [];
     var qLow = q.toLowerCase();
     var words = qLow.split(/\s+/).filter(function(w){return w.length>2;});
+    var multiWord = words.length > 1;
 
     Object.keys(props.transcripts).forEach(function(ytId){
       var tr = props.transcripts[ytId];
       var text = tr.text || '';
       var textLow = text.toLowerCase();
 
-      // Find all positions of any word
-      var positions = [];
+      // For multi-word: ALL words must appear in the transcript
+      if(multiWord){
+        var allPresent = words.every(function(w){return textLow.indexOf(w)>=0;});
+        if(!allPresent) return;
+      }
+
+      // Find positions per word
+      var positionsPerWord = {};
+      var allPositions = [];
       words.forEach(function(w){
+        positionsPerWord[w] = [];
         var pos = 0;
         while(true){
           var idx = textLow.indexOf(w, pos);
           if(idx<0) break;
-          positions.push(idx);
+          positionsPerWord[w].push(idx);
+          allPositions.push(idx);
           pos = idx+1;
         }
       });
 
-      if(positions.length===0) return;
+      if(allPositions.length===0) return;
 
-      // Deduplicate nearby positions, take top 3 snippets
-      positions.sort(function(a,b){return a-b;});
+      // For multi-word: prefer snippets where words are close together
+      var snippetPositions = [];
+      if(multiWord){
+        // Find positions where all words appear within 800 chars of each other
+        var firstWordPos = positionsPerWord[words[0]] || [];
+        firstWordPos.forEach(function(startPos){
+          var window = textLow.slice(startPos, startPos+800);
+          var allInWindow = words.every(function(w){return window.indexOf(w)>=0;});
+          if(allInWindow) snippetPositions.push(startPos);
+        });
+        // If no close co-occurrences, fall back to first occurrence of each word
+        if(snippetPositions.length===0){
+          words.forEach(function(w){
+            if(positionsPerWord[w].length>0) snippetPositions.push(positionsPerWord[w][0]);
+          });
+        }
+      } else {
+        snippetPositions = allPositions;
+      }
+
+      snippetPositions.sort(function(a,b){return a-b;});
+
+      // Build snippets, deduplicate overlapping
       var snippets = [];
       var lastEnd = -1;
-      positions.forEach(function(pos){
+      snippetPositions.forEach(function(pos){
         if(pos < lastEnd) return;
         var start = Math.max(0, pos-150);
         var end   = Math.min(text.length, pos+550);
@@ -1568,22 +1599,27 @@ function VolltextSuche(props) {
         lastEnd = end;
       });
 
-      // Find matching episode
-      var ep = EPISODES.find(function(e){return e.yt===ytId;});
+      // Score: for multi-word, boost co-occurrences
+      var score = allPositions.length;
+      if(multiWord) score = snippetPositions.length * 10 + allPositions.length;
 
+      var ep = EPISODES.find(function(e){return e.yt===ytId;});
       hits.push({
         ytId: ytId,
         ep: ep || null,
         guest: tr.guest,
         title: tr.title,
-        matchCount: positions.length,
+        matchCount: allPositions.length,
+        coOccurrences: multiWord ? snippetPositions.length : null,
+        score: score,
         snippets: snippets.slice(0,3),
       });
     });
 
-    // Sort by match count
-    hits.sort(function(a,b){return b.matchCount-a.matchCount;});
-    setResults(hits.slice(0,30));
+    // Sort by score (co-occurrences first for multi-word)
+    hits.sort(function(a,b){return b.score-a.score;});
+    // No artificial limit - show all results that match
+    setResults(hits);
     setSearching(false);
   }
 
@@ -1632,7 +1668,10 @@ function VolltextSuche(props) {
     </div>
 
     {results.length>0&&<div style={{color:P.light,fontSize:11,marginBottom:10}}>
-      {results.length} Treffer · Klicke auf eine Textstelle zum Speichern
+      {results.length} Treffer
+      {words.length>1&&" · nur Episoden mit allen "+words.length+" Wörtern"}
+      {results[0]&&results[0].coOccurrences!=null&&" · sortiert nach Häufigkeit der Wortkombination"}
+      {" · Klicke auf eine Textstelle zum Speichern"}
     </div>}
 
     {/* Save popup */}
@@ -1704,7 +1743,7 @@ function VolltextSuche(props) {
             </div>
             <span style={{background:P.creamDim,color:P.mid,fontSize:10,
               padding:"2px 8px",borderRadius:10,flexShrink:0,marginLeft:8}}>
-              {hit.matchCount} Treffer
+              {hit.matchCount} Treffer{hit.coOccurrences!=null&&hit.coOccurrences>0?" · "+hit.coOccurrences+"× zusammen":""}
             </span>
           </div>
           {hit.snippets.map(function(snip,si){
