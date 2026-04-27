@@ -2643,6 +2643,8 @@ function App(){
             position={idx2>=0?(idx2+1)+" / "+filtered.length:null}
             onPrev={idx2>0?function(){setSelected(filtered[idx2-1]);}:null}
             onNext={idx2<filtered.length-1?function(){setSelected(filtered[idx2+1]);}:null}
+            /></div>})</div>
+      )}
       {tab==="graph"&&<GraphTabs
         eps={EPISODES}
         selected={selected}
