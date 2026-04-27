@@ -292,6 +292,14 @@ function GraphFilterPanel(props){
         <button onClick={props.onResetLayout} style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"50",borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>⟳ Layout</button>
         <button onClick={props.onResetPins} title="Alle angepinnten Knoten lösen"
           style={{background:P.cream,color:P.mid,border:"1px solid "+P.creamDim,borderRadius:14,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>📌 Pins lösen</button>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:4}}>
+          <span style={{color:P.light,fontSize:10}}>Knoten:</span>
+          <input type="range" min="20" max="200" step="10"
+            value={props.graphSize||60}
+            onChange={function(e){props.onGraphSize&&props.onGraphSize(parseInt(e.target.value));}}
+            style={{width:80,accentColor:P.teal}}/>
+          <span style={{color:P.teal,fontSize:11,minWidth:28}}>{props.graphSize||60}</span>
+        </div>
       </div>
       <div style={{display:"flex",justifyContent:"flex-end",marginTop:6}}>
         <FilterModeToggle mode={props.filterMode} onChange={props.onFilterMode}/>
@@ -428,7 +436,35 @@ function Graph(props){var ref=useRef(null);var [dims,setDims]=useState({w:680,h:
       .style("pointer-events","none").style("opacity","0").style("z-index","1000")
       .style("max-width","240px").style("line-height","1.5").style("box-shadow","0 2px 8px rgba(0,0,0,0.3)");
   }
-  var eps=props.eps,w=dims.w,h=dims.h;var svg=d3.select(ref.current);svg.selectAll("*").remove();var nodes=eps.map(function(ep){return{id:epId(ep),ep:ep,r:ep.type==="guest"?12:9};});var links=[];for(var i=0;i<eps.length;i++){for(var j=i+1;j<eps.length;j++){var a=eps[i],b=eps[j];var ss=a.spheres.filter(function(s){return b.spheres.indexOf(s)>=0;}).length,sf=a.felder.filter(function(f){return b.felder.indexOf(f)>=0;}).length;if(ss+sf>=3)links.push({source:epId(a),target:epId(b),str:ss*2+sf,col:sc(a.spheres[0])});}}var ctr={};SPHERES.forEach(function(s,i){var angles=[Math.PI*1.5,Math.PI*0.8,Math.PI*0.15];ctr[s.id]={x:w/2+Math.cos(angles[i])*w*0.42,y:h/2+Math.sin(angles[i])*h*0.46};});// Find top-5 most connected nodes → place as pentagon, pre-pinned
+  var eps=props.eps,w=dims.w,h=dims.h;var svg=d3.select(ref.current);svg.selectAll("*").remove();// Limit to top N most-connected nodes for performance
+var maxN = props.graphSize || 60;
+var visEps = eps;
+if(eps.length > maxN){
+  // Score each ep by how many others it connects to
+  var connScore = {};
+  for(var ci=0;ci<eps.length;ci++){
+    connScore[epId(eps[ci])]=0;
+    for(var cj=0;cj<eps.length;cj++){
+      if(ci===cj) continue;
+      var ca=eps[ci],cb=eps[cj];
+      var css=(ca.spheres||[]).filter(function(s){return (cb.spheres||[]).indexOf(s)>=0;}).length;
+      var csf=(ca.felder||[]).filter(function(f){return (cb.felder||[]).indexOf(f)>=0;}).length;
+      if(css+csf>=3) connScore[epId(eps[ci])]++;
+    }
+  }
+  // If selected/multiSel exist, always include them
+  var mustInclude={};
+  if(props.selected) mustInclude[epId(props.selected)]=true;
+  (props.multiSel||[]).forEach(function(id){mustInclude[id]=true;});
+  var sorted=eps.slice().sort(function(a,b){return connScore[epId(b)]-connScore[epId(a)];});
+  var topN=sorted.slice(0,maxN-Object.keys(mustInclude).length);
+  var mustEps=eps.filter(function(e){return mustInclude[epId(e)];});
+  var topIds={}; topN.forEach(function(e){topIds[epId(e)]=true;});
+  mustEps.forEach(function(e){topIds[epId(e)]=true;});
+  visEps=eps.filter(function(e){return topIds[epId(e)];});
+}
+var nodes=visEps.map(function(ep){return{id:epId(ep),ep:ep,r:ep.type==="guest"?12:9};});
+var links=[];for(var i=0;i<visEps.length;i++){for(var j=i+1;j<visEps.length;j++){var a=visEps[i],b=visEps[j];var ss=a.spheres.f="guest"?12:9};});var links=[];for(var i=0;i<eps.length;i++){for(var j=i+1;j<eps.length;j++){var a=eps[i],b=eps[j];var ss=a.spheres.filter(function(s){return b.spheres.indexOf(s)>=0;}).length,sf=a.felder.filter(function(f){return b.felder.indexOf(f)>=0;}).length;if(ss+sf>=3)links.push({source:epId(a),target:epId(b),str:ss*2+sf,col:sc(a.spheres[0])});}}var ctr={};SPHERES.forEach(function(s,i){var angles=[Math.PI*1.5,Math.PI*0.8,Math.PI*0.15];ctr[s.id]={x:w/2+Math.cos(angles[i])*w*0.42,y:h/2+Math.sin(angles[i])*h*0.46};});// Find top-5 most connected nodes → place as pentagon, pre-pinned
 var connectionCount = {};
 links.forEach(function(l){
   connectionCount[l.source] = (connectionCount[l.source]||0)+1;
@@ -458,7 +494,7 @@ nodes.forEach(function(n){
   n.x = c.x + Math.cos(angle)*dist + (Math.random()-0.5)*40;
   n.y = c.y + Math.sin(angle)*dist + (Math.random()-0.5)*40;
 });
-var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d){return d.id;}).distance(260).strength(0.06)).force("charge",d3.forceManyBody().strength(-1200).distanceMin(15).distanceMax(800)).force("center",d3.forceCenter(w/2,h/2).strength(0.006)).force("collision",d3.forceCollide(function(d){return d.r+28;}).strength(0.9)).force("cluster",function(alpha){nodes.forEach(function(n){var c=ctr[n.ep.spheres[0]];if(c){n.vx-=(n.x-c.x)*alpha*0.018;n.vy-=(n.y-c.y)*alpha*0.018;}});});var bg=svg.append("g");SPHERES.forEach(function(s){var c=ctr[s.id];if(!c)return;bg.append("text").attr("x",c.x).attr("y",c.y).attr("text-anchor","middle").attr("font-size",16).attr("font-family","Georgia,serif").attr("fill",s.color).attr("opacity",0.1).attr("font-weight","bold").text(s.iLabel.split(" ·")[0]);});var lEl=svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke",function(d){return d.col;}).attr("stroke-opacity",function(d){return Math.min(0.13,d.str*0.03);}).attr("stroke-width",function(d){return Math.min(2.5,d.str*0.3);});var nEl=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("class","node-group").attr("cursor","pointer").call(d3.drag().on("start",function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on("drag",function(e,d){d.fx=e.x;d.fy=e.y;}).on("end",function(e,d){if(!e.active)sim.alphaTarget(0);})).on("click",function(e,d){e.stopPropagation();props.onSelect(d.ep,e.shiftKey);});nEl.append("circle").attr("r",function(d){return d.r;})
+var sim=d3.forceSimulation(nodes).alphaDecay(0.05).velocityDecay(0.45).force("link",d3.forceLink(links).id(function(d){return d.id;}).distance(260).strength(0.06)).force("charge",d3.forceManyBody().strength(-1200).distanceMin(15).distanceMax(800)).force("center",d3.forceCenter(w/2,h/2).strength(0.006)).force("collision",d3.forceCollide(function(d){return d.r+28;}).strength(0.9)).force("cluster",function(alpha){nodes.forEach(function(n){var c=ctr[n.ep.spheres[0]];if(c){n.vx-=(n.x-c.x)*alpha*0.018;n.vy-=(n.y-c.y)*alpha*0.018;}});});var bg=svg.append("g");SPHERES.forEach(function(s){var c=ctr[s.id];if(!c)return;bg.append("text").attr("x",c.x).attr("y",c.y).attr("text-anchor","middle").attr("font-size",16).attr("font-family","Georgia,serif").attr("fill",s.color).attr("opacity",0.1).attr("font-weight","bold").text(s.iLabel.split(" ·")[0]);});var lEl=svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke",function(d){return d.col;}).attr("stroke-opacity",function(d){return Math.min(0.13,d.str*0.03);}).attr("stroke-width",function(d){return Math.min(2.5,d.str*0.3);});var nEl=svg.append("g").selectAll("g").data(nodes).enter().append("g").attr("class","node-group").attr("cursor","pointer").call(d3.drag().on("start",function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on("drag",function(e,d){d.fx=e.x;d.fy=e.y;}).on("end",function(e,d){if(!e.active)sim.alphaTarget(0);})).on("click",function(e,d){e.stopPropagation();props.onSelect(d.ep,e.shiftKey);});nEl.append("circle").attr("r",function(d){return d.r;})
       .on("mouseover",function(event,d){
         d3.select(this).attr("r",d.r+4).attr("opacity",1);
         var tt=d3.select(".hk-tooltip");tt.style("opacity",1).html(
@@ -499,7 +535,7 @@ var sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(function(d
         if(d.y<=pad+20||d.y>=h-pad) d.vy*=-0.5;
       }
       return "translate("+d.x+","+d.y+")";
-    });});return function(){sim.stop();};
+    });});var tickCount=0;sim.on("end",function(){sim.stop();});setTimeout(function(){sim.stop();},4000); // max 4 secreturn function(){sim.stop();};
   },[props.eps,dims]);
 
   // Separate effect: highlight selected node + fade unconnected
@@ -1542,18 +1578,33 @@ function Glossar(props) {
 
 // ─── VOLLTEXT-SUCHE ───────────────────────────────────────────────────────
 function VolltextSuche(props) {
-  var [query, setQuery]     = useState("");
+  var [query, setQuery]     = useState(function(){return loadLS("hk-vt-query","");});
   var [results, setResults] = useState([]);
   var [searching, setSearching] = useState(false);
   var [savePopup, setSavePopup] = useState(null);
-  var [onlyVTT, setOnlyVTT] = useState(false); // {text, epId, x, y}
+  var [onlyVTT, setOnlyVTT] = useState(false);
+  var [history, setHistory]   = useState(function(){return loadLS("hk-vt-history",[]);});
 
-  // Load transcripts when tab opens
-  useEffect(function(){ props.onLoad && props.onLoad(); }, []);
+  useEffect(function(){saveLS("hk-vt-query",query);},[query]);
+  useEffect(function(){saveLS("hk-vt-history",history);},[history]);
+
+  // Load transcripts + re-run last search
+  useEffect(function(){
+    props.onLoad && props.onLoad();
+  },[]);
+  useEffect(function(){
+    if(query.trim() && props.transcripts && results.length===0) doSearch(query);
+  },[props.transcripts]);
 
   function doSearch(q) {
     if(!q.trim() || !props.transcripts) return;
     setSearching(true);
+    if(q.trim().length>2){
+      setHistory(function(prev){
+        var f=prev.filter(function(h){return h.q!==q.trim();});
+        return [{q:q.trim(),ts:Date.now()}].concat(f).slice(0,15);
+      });
+    }
     var hits = [];
     var qLow = q.toLowerCase();
     var words = qLow.split(/\s+/).filter(function(w){return w.length>2;});
@@ -1688,6 +1739,18 @@ function VolltextSuche(props) {
         Suchen
       </button>
     </div>
+    {history.length>0&&<div style={{marginBottom:8,display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+      <span style={{color:P.light,fontSize:10}}>🕐</span>
+      {history.slice(0,10).map(function(h){
+        var active=query===h.q;
+        return <button key={h.ts}
+          onClick={function(){setQuery(h.q);doSearch(h.q);}}
+          style={{background:active?P.tealPale:P.cream,color:active?P.teal:P.mid,
+            border:"1px solid "+(active?P.teal+"50":P.creamDim),
+            borderRadius:10,padding:"2px 8px",fontSize:10,cursor:"pointer"}}>{h.q}</button>;
+      })}
+      <button onClick={function(){setHistory([]);}} style={{background:"none",border:"none",color:P.light,fontSize:10,cursor:"pointer"}}>✕</button>
+    </div>}
     {props.transcripts&&<div style={{display:"flex",gap:6,marginBottom:10,alignItems:"center"}}>
       <button onClick={function(){setOnlyVTT(!onlyVTT);if(!onlyVTT)doSearch(query);}
         } title="Nur Episoden mit sekundengenauen Zeitmarken"
@@ -1825,6 +1888,463 @@ function VolltextSuche(props) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════
+// GRAPH SUB-COMPONENTS
+// ═══════════════════════════════════════════════════════════
+
+// ── A: GEFILTERTER GRAPH ─────────────────────────────────
+// Startet leer, zeigt nur gewählte Teilmenge
+function GraphGefiltert(props) {
+  var [searchQ, setSearchQ] = useState("");
+  var [selFelder, setSelFelder] = useState([]);
+  var [selSphere, setSelSphere] = useState(null);
+  var [maxNodes, setMaxNodes] = useState(40);
+  var [resetKey, setResetKey] = useState(0);
+
+  var allFelder = [];
+  EPISODES.forEach(function(ep){ (ep.felder||[]).forEach(function(f){ if(allFelder.indexOf(f)<0) allFelder.push(f); }); });
+
+  var filtered = EPISODES.filter(function(ep){
+    if(selSphere && (ep.spheres||[]).indexOf(selSphere)<0) return false;
+    if(selFelder.length>0 && !selFelder.some(function(f){return (ep.felder||[]).indexOf(f)>=0;})) return false;
+    if(searchQ.trim()){
+      var q=searchQ.toLowerCase();
+      return (ep.guest||"").toLowerCase().indexOf(q)>=0 ||
+             (ep.title||"").toLowerCase().indexOf(q)>=0 ||
+             (ep.keywords||[]).some(function(k){return k.toLowerCase().indexOf(q)>=0;});
+    }
+    return selFelder.length>0 || selSphere;
+  }).slice(0,maxNodes);
+
+  var hasFilter = selFelder.length>0 || selSphere || searchQ.trim();
+
+  return(<div>
+    <div style={{background:P.cream,borderRadius:8,padding:"12px 14px",marginBottom:10}}>
+      <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap",alignItems:"center"}}>
+        <input value={searchQ} onChange={function(e){setSearchQ(e.target.value);}}
+          placeholder="Person, Titel, Keyword…"
+          style={{flex:1,minWidth:160,background:P.white,color:P.dark,border:"1px solid "+P.creamDim,
+            borderRadius:6,padding:"6px 10px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/>
+        <select value={maxNodes} onChange={function(e){setMaxNodes(parseInt(e.target.value));}}
+          style={{background:P.white,color:P.mid,border:"1px solid "+P.creamDim,borderRadius:6,
+            padding:"5px 8px",fontSize:11,cursor:"pointer"}}>
+          {[20,30,40,60,80].map(function(n){return <option key={n} value={n}>max {n}</option>;})}
+        </select>
+        {hasFilter&&<button onClick={function(){setSelFelder([]);setSelSphere(null);setSearchQ("");}}
+          style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"40",
+            borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>✕ Filter</button>}
+      </div>
+      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+        {SPHERES.map(function(s){var act=selSphere===s.id;return(
+          <button key={s.id} onClick={function(){setSelSphere(act?null:s.id);}}
+            style={{background:act?s.color+"25":P.white,color:act?s.color:P.mid,
+              border:"1px solid "+(act?s.color:P.creamDim),borderRadius:10,
+              padding:"2px 8px",fontSize:10,cursor:"pointer"}}>{s.label}</button>
+        );})}
+        {allFelder.slice(0,8).map(function(f){var act=selFelder.indexOf(f)>=0;return(
+          <button key={f} onClick={function(){setSelFelder(function(prev){return act?prev.filter(function(x){return x!==f;}):[...prev,f];});}}
+            style={{background:act?P.tealPale:P.white,color:act?P.teal:P.light,
+              border:"1px solid "+(act?P.teal+"50":P.creamDim),borderRadius:10,
+              padding:"2px 8px",fontSize:10,cursor:"pointer"}}>{f.substring(0,20)}</button>
+        );})}
+      </div>
+    </div>
+    {!hasFilter&&<div style={{color:P.light,fontSize:13,padding:"40px 20px",textAlign:"center",
+      background:P.white,borderRadius:8,border:"1px solid "+P.creamDim}}>
+      🔍 Wähle Sphären, Felder oder suche nach einer Person/Titel<br/>
+      <span style={{fontSize:11}}>Der Graph zeigt dann die passenden Einträge und ihre Verbindungen</span>
+    </div>}
+    {hasFilter&&filtered.length===0&&<div style={{color:P.mid,fontSize:13,padding:"30px",textAlign:"center"}}>
+      Keine Treffer für diese Filter-Kombination.
+    </div>}
+    {hasFilter&&filtered.length>0&&<div>
+      <div style={{color:P.light,fontSize:11,marginBottom:6}}>{filtered.length} Einträge · Shift+Klick für Mehrfachauswahl</div>
+      <div style={{background:P.white,borderRadius:8,border:"1px solid "+P.creamDim,overflow:"hidden"}}>
+        <Graph key={resetKey+selFelder.join()+selSphere+searchQ}
+          eps={filtered} selected={props.selected}
+          multiSel={props.multiSel}
+          onSelect={props.onSelect2||props.onSelect}
+          onNavEp={props.onNavEp}/>
+      </div>
+      <div style={{display:"flex",gap:6,marginTop:6}}>
+        <button onClick={function(){setResetKey(function(k){return k+1;});}}
+          style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"40",
+            borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>⟳ Layout</button>
+        {props.multiSel&&props.multiSel.length>0&&<button onClick={props.onClearMulti}
+          style={{background:"#d4a84b20",color:"#d4a84b",border:"1px solid #d4a84b50",
+            borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>
+          ✕ {props.multiSel.length} Auswahl</button>}
+      </div>
+    </div>}
+  </div>);
+}
+
+// ── B: STATISCHES LAYOUT ─────────────────────────────────
+// Vorberechnetes Grid-Layout, keine Physik-Simulation
+function GraphStatisch(props) {
+  var [selFelder, setSelFelder] = useState([]);
+  var [selSphere, setSelSphere] = useState(null);
+
+  var eps = EPISODES.filter(function(ep){
+    if(selSphere && (ep.spheres||[]).indexOf(selSphere)<0) return false;
+    if(selFelder.length>0 && !selFelder.some(function(f){return (ep.felder||[]).indexOf(f)>=0;})) return false;
+    return true;
+  });
+
+  // Group by primary felder
+  var groups = {};
+  eps.forEach(function(ep){
+    var f = (ep.felder||["Sonstiges"])[0];
+    if(!groups[f]) groups[f]=[];
+    groups[f].push(ep);
+  });
+  var groupEntries = Object.entries(groups).sort(function(a,b){return b[1].length-a[1].length;});
+
+  var feldColors = {"sozial-ökologische Transformation":"#3a9e8c","globales Lernen & transformative Bildung":"#9a70c8",
+    "Dekolonialisierung":"#d46878","globale Gerechtigkeit":"#d4a84b","Klima- & Ressourcen-Gerechtigkeit":"#5a9e6c",
+    "Digitalität":"#5a8ecc","Fairer Handel & regenerative Wirtschaft":"#c87c50","Frieden & Abrüstung":"#8e8e70"};
+
+  return(<div>
+    <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}}>
+      {SPHERES.map(function(s){var act=selSphere===s.id;return(
+        <button key={s.id} onClick={function(){setSelSphere(act?null:s.id);}}
+          style={{background:act?s.color+"25":P.white,color:act?s.color:P.mid,
+            border:"1px solid "+(act?s.color:P.creamDim),borderRadius:10,
+            padding:"2px 8px",fontSize:10,cursor:"pointer"}}>{s.label}</button>
+      );})}
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
+      {groupEntries.map(function(entry){
+        var feld=entry[0], feldEps=entry[1];
+        var col=feldColors[feld]||P.teal;
+        return(<div key={feld} style={{background:P.white,border:"1px solid "+col+"40",
+          borderTop:"3px solid "+col,borderRadius:8,padding:"10px 12px"}}>
+          <div style={{color:col,fontSize:12,fontWeight:"bold",marginBottom:6}}>
+            {feld.substring(0,30)} <span style={{color:P.light,fontWeight:"normal"}}>({feldEps.length})</span>
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+            {feldEps.map(function(ep){
+              var active=props.selected&&epId(props.selected)===epId(ep);
+              return(<button key={epId(ep)} onClick={function(){props.onSelect(ep);}}
+                style={{background:active?col+"20":P.cream,color:active?col:P.mid,
+                  border:"1px solid "+(active?col:P.creamDim),borderRadius:4,
+                  padding:"2px 6px",fontSize:10,cursor:"pointer",textAlign:"left"}}>
+                {(ep.guest||ep.title||"").split(" ").slice(-1)[0].substring(0,12)}
+              </button>);
+            })}
+          </div>
+        </div>);
+      })}
+    </div>
+  </div>);
+}
+
+// ── C: CLUSTER-ANSICHT ────────────────────────────────────
+// Erst Felder als große Kreise, dann Episoden beim Klick
+function GraphCluster(props) {
+  var [openCluster, setOpenCluster] = useState(null);
+  var svgRef = useRef(null);
+
+  var feldColors = {"sozial-ökologische Transformation":"#3a9e8c","globales Lernen & transformative Bildung":"#9a70c8",
+    "Dekolonialisierung":"#d46878","globale Gerechtigkeit":"#d4a84b","Klima- & Ressourcen-Gerechtigkeit":"#5a9e6c",
+    "Digitalität":"#5a8ecc","Fairer Handel & regenerative Wirtschaft":"#c87c50","Frieden & Abrüstung":"#8e8e70"};
+
+  var groups = {};
+  EPISODES.forEach(function(ep){
+    (ep.felder||["Sonstiges"]).forEach(function(f){
+      if(!groups[f]) groups[f]=[];
+      if(groups[f].indexOf(ep)<0) groups[f].push(ep);
+    });
+  });
+  var sorted = Object.entries(groups).sort(function(a,b){return b[1].length-a[1].length;}).slice(0,8);
+
+  return(<div>
+    <div style={{color:P.light,fontSize:11,marginBottom:8}}>
+      Klicke auf ein Feld um seine Episoden zu sehen
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10,marginBottom:16}}>
+      {sorted.map(function(entry){
+        var feld=entry[0], feldEps=entry[1];
+        var col=feldColors[feld]||P.teal;
+        var isOpen=openCluster===feld;
+        var r=Math.max(40,Math.min(80,feldEps.length*2.5));
+        return(<div key={feld} onClick={function(){setOpenCluster(isOpen?null:feld);}}
+          style={{background:isOpen?col+"18":P.white,border:"2px solid "+(isOpen?col:col+"50"),
+            borderRadius:12,padding:"14px 16px",cursor:"pointer",textAlign:"center",
+            transition:"all 0.2s"}}>
+          <div style={{width:r,height:r,borderRadius:"50%",background:col+(isOpen?"":"40"),
+            margin:"0 auto 8px",display:"flex",alignItems:"center",justifyContent:"center",
+            color:isOpen?P.white:col,fontSize:Math.max(16,r*0.4),fontWeight:"bold",transition:"all 0.2s"}}>
+            {feldEps.length}
+          </div>
+          <div style={{color:isOpen?col:P.mid,fontSize:11,fontWeight:isOpen?"bold":"normal",lineHeight:1.3}}>
+            {feld.substring(0,35)}
+          </div>
+        </div>);
+      })}
+    </div>
+    {openCluster&&groups[openCluster]&&<div>
+      <div style={{color:P.mid,fontFamily:"Georgia,serif",fontSize:14,marginBottom:8}}>
+        {openCluster} <span style={{color:P.light,fontSize:11}}>({groups[openCluster].length} Einträge)</span>
+      </div>
+      <div style={{background:P.white,borderRadius:8,border:"1px solid "+P.creamDim,overflow:"hidden"}}>
+        <Graph key={"cluster-"+openCluster}
+          eps={groups[openCluster].slice(0,50)}
+          selected={props.selected}
+          onSelect={props.onSelect}
+          onNavEp={props.onNavEp}/>
+      </div>
+    </div>}
+  </div>);
+}
+
+// ── D: MATRIX ────────────────────────────────────────────
+// Ähnlichkeitsmatrix: Episoden × Felder
+function GraphMatrix(props) {
+  var [sortBy, setSortBy] = useState("felder");
+  var [searchQ, setSearchQ] = useState("");
+  var [selFelder, setSelFelder] = useState([]);
+
+  var feldColors = {"sozial-ökologische Transformation":"#3a9e8c","globales Lernen & transformative Bildung":"#9a70c8",
+    "Dekolonialisierung":"#d46878","globale Gerechtigkeit":"#d4a84b","Klima- & Ressourcen-Gerechtigkeit":"#5a9e6c",
+    "Digitalität":"#5a8ecc","Fairer Handel & regenerative Wirtschaft":"#c87c50","Frieden & Abrüstung":"#8e8e70"};
+
+  var allFelder = Object.keys(feldColors);
+
+  var eps = EPISODES.filter(function(ep){
+    if(selFelder.length>0 && !selFelder.some(function(f){return (ep.felder||[]).indexOf(f)>=0;})) return false;
+    if(searchQ.trim()){
+      var q=searchQ.toLowerCase();
+      return (ep.guest||"").toLowerCase().indexOf(q)>=0||(ep.title||"").toLowerCase().indexOf(q)>=0;
+    }
+    return true;
+  });
+
+  // Sort
+  if(sortBy==="felder"){
+    eps = eps.slice().sort(function(a,b){
+      return (a.felder||[""])[0].localeCompare((b.felder||[""])[0]);
+    });
+  } else if(sortBy==="generation"){
+    eps = eps.slice().sort(function(a,b){return (a.generation||"").localeCompare(b.generation||"");});
+  } else if(sortBy==="hemisphere"){
+    eps = eps.slice().sort(function(a,b){return (a.hemisphere||"").localeCompare(b.hemisphere||"");});
+  }
+
+  return(<div>
+    <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
+      <input value={searchQ} onChange={function(e){setSearchQ(e.target.value);}}
+        placeholder="Person oder Titel…"
+        style={{flex:1,minWidth:140,background:P.white,color:P.dark,border:"1px solid "+P.creamDim,
+          borderRadius:6,padding:"5px 10px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/>
+      <select value={sortBy} onChange={function(e){setSortBy(e.target.value);}}
+        style={{background:P.white,color:P.mid,border:"1px solid "+P.creamDim,
+          borderRadius:6,padding:"5px 8px",fontSize:11}}>
+        <option value="felder">Sortierung: Feld</option>
+        <option value="generation">Sortierung: Generation</option>
+        <option value="hemisphere">Sortierung: Hemisphäre</option>
+      </select>
+    </div>
+    <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}}>
+      {allFelder.map(function(f){var act=selFelder.indexOf(f)>=0;var col=feldColors[f]||P.teal;return(
+        <button key={f} onClick={function(){setSelFelder(function(prev){return act?prev.filter(function(x){return x!==f;}):[...prev,f];});}}
+          style={{background:act?col+"20":P.white,color:act?col:P.light,border:"1px solid "+(act?col:P.creamDim),
+            borderRadius:10,padding:"2px 7px",fontSize:9,cursor:"pointer"}}>{f.substring(0,18)}</button>
+      );})}
+    </div>
+    <div style={{overflowX:"auto"}}>
+      <table style={{borderCollapse:"collapse",fontSize:10,width:"100%"}}>
+        <thead>
+          <tr>
+            <th style={{background:P.cream,padding:"6px 8px",textAlign:"left",color:P.mid,fontSize:10,position:"sticky",left:0,zIndex:1}}>
+              Person / Titel ({eps.length})
+            </th>
+            {allFelder.map(function(f){var col=feldColors[f]||P.teal;return(
+              <th key={f} style={{background:P.cream,padding:"4px 6px",color:col,fontSize:9,
+                writingMode:"vertical-lr",transform:"rotate(180deg)",
+                maxWidth:24,overflow:"hidden",verticalAlign:"bottom",whiteSpace:"nowrap"}}>
+                {f.substring(0,18)}
+              </th>
+            );})}
+            <th style={{background:P.cream,padding:"4px 6px",color:P.light,fontSize:9}}>Gen</th>
+            <th style={{background:P.cream,padding:"4px 6px",color:P.light,fontSize:9}}>Hem</th>
+          </tr>
+        </thead>
+        <tbody>
+          {eps.slice(0,200).map(function(ep){
+            var active=props.selected&&epId(props.selected)===epId(ep);
+            return(<tr key={epId(ep)} onClick={function(){props.onSelect(ep);}}
+              style={{background:active?P.tealPale:"transparent",cursor:"pointer"}}>
+              <td style={{padding:"3px 8px",color:active?P.teal:P.dark,fontSize:10,
+                whiteSpace:"nowrap",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",
+                position:"sticky",left:0,background:active?P.tealPale:P.white,
+                borderBottom:"1px solid "+P.creamDim+"60"}}>
+                {(ep.guest||ep.title||"").substring(0,22)}
+              </td>
+              {allFelder.map(function(f){
+                var has=(ep.felder||[]).indexOf(f)>=0;
+                var col=feldColors[f]||P.teal;
+                return(<td key={f} style={{textAlign:"center",padding:"3px 4px",
+                  borderBottom:"1px solid "+P.creamDim+"40"}}>
+                  {has&&<div style={{width:8,height:8,borderRadius:"50%",
+                    background:col,margin:"0 auto"}}/>}
+                </td>);
+              })}
+              <td style={{padding:"3px 6px",color:P.light,fontSize:9,textAlign:"center",
+                borderBottom:"1px solid "+P.creamDim+"40"}}>{(ep.generation||"").substring(0,4)}</td>
+              <td style={{padding:"3px 6px",color:P.light,fontSize:9,textAlign:"center",
+                borderBottom:"1px solid "+P.creamDim+"40"}}>{(ep.hemisphere||"").substring(0,4)}</td>
+            </tr>);
+          })}
+        </tbody>
+      </table>
+    </div>
+  </div>);
+}
+
+// ── E: KLEINES NETZ ──────────────────────────────────────
+// Wie alter Graph aber max 60 Knoten, bessere Defaults
+function GraphNetz(props) {
+  var [maxN, setMaxN] = useState(40);
+  var [localReset, setLocalReset] = useState(0);
+
+  var eps = (props.eps||EPISODES).filter(function(ep){
+    return props.merkliste&&props.merkliste.indexOf(epId(ep))>=0;
+  });
+  var fromMerk = eps.length > 0;
+  if(!fromMerk) eps = (props.eps||EPISODES).slice(0,maxN);
+
+  return(<div>
+    <div style={{background:P.cream,borderRadius:8,padding:"10px 12px",marginBottom:8,
+      display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+      {!fromMerk&&<div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <span style={{color:P.mid,fontSize:11}}>Zeige erste</span>
+        {[20,30,40,50,60].map(function(n){return(
+          <button key={n} onClick={function(){setMaxN(n);setLocalReset(function(k){return k+1;});}}
+            style={{background:maxN===n?P.teal:P.white,color:maxN===n?P.white:P.mid,
+              border:"1px solid "+(maxN===n?P.teal:P.creamDim),borderRadius:4,
+              padding:"2px 7px",fontSize:10,cursor:"pointer"}}>{n}</button>
+        );})}
+        <span style={{color:P.light,fontSize:10}}>Einträge</span>
+      </div>}
+      {fromMerk&&<div style={{color:P.teal,fontSize:11}}>
+        🔖 Zeigt deine {eps.length} Werklisten-Einträge
+      </div>}
+      <button onClick={function(){setLocalReset(function(k){return k+1;});}}
+        style={{background:P.tealPale,color:P.teal,border:"1px solid "+P.teal+"40",
+          borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",marginLeft:"auto"}}>⟳ Layout</button>
+    </div>
+    <div style={{color:P.light,fontSize:10,marginBottom:6}}>
+      {fromMerk?"Verbindungen zwischen deinen Werklisten-Einträgen"
+        :"Tipp: Füge Einträge zur Werkliste hinzu um ihr Beziehungsnetz zu sehen"}
+    </div>
+    <div style={{background:P.white,borderRadius:8,border:"1px solid "+P.creamDim,overflow:"hidden"}}>
+      <Graph key={"netz-"+localReset+(props.resetKey||0)+maxN+fromMerk}
+        eps={eps} selected={props.selected}
+        multiSel={props.multiSel}
+        onSelect={props.onSelect}
+        onNavEp={props.onNavEp}/>
+    </div>
+  </div>);
+}
+
+// ── F: LISTE ─────────────────────────────────────────────
+// Durchsuchbare Tabelle mit Verbindungsinfos
+function GraphListe(props) {
+  var [searchQ, setSearchQ] = useState("");
+  var [sortBy, setSortBy] = useState("connections");
+  var [selFelder, setSelFelder] = useState([]);
+
+  // Precompute connections count per episode
+  var connMap = {};
+  EPISODES.forEach(function(a){
+    var id=epId(a), count=0;
+    EPISODES.forEach(function(b){
+      if(a===b) return;
+      var shared=(a.spheres||[]).filter(function(s){return (b.spheres||[]).indexOf(s)>=0;}).length
+               +(a.felder||[]).filter(function(f){return (b.felder||[]).indexOf(f)>=0;}).length;
+      if(shared>=3) count++;
+    });
+    connMap[id]=count;
+  });
+
+  var allFelder = [];
+  EPISODES.forEach(function(ep){(ep.felder||[]).forEach(function(f){if(allFelder.indexOf(f)<0)allFelder.push(f);});});
+
+  var eps = EPISODES.filter(function(ep){
+    if(selFelder.length>0 && !selFelder.some(function(f){return (ep.felder||[]).indexOf(f)>=0;})) return false;
+    if(!searchQ.trim()) return true;
+    var q=searchQ.toLowerCase();
+    return (ep.guest||"").toLowerCase().indexOf(q)>=0 ||
+           (ep.title||"").toLowerCase().indexOf(q)>=0 ||
+           (ep.felder||[]).some(function(f){return f.toLowerCase().indexOf(q)>=0;}) ||
+           (ep.keywords||[]).some(function(k){return k.toLowerCase().indexOf(q)>=0;});
+  });
+
+  if(sortBy==="connections") eps=eps.slice().sort(function(a,b){return (connMap[epId(b)]||0)-(connMap[epId(a)]||0);});
+  else if(sortBy==="alpha") eps=eps.slice().sort(function(a,b){return (a.guest||a.title||"").localeCompare(b.guest||b.title||"");});
+  else if(sortBy==="felder") eps=eps.slice().sort(function(a,b){return ((a.felder||[""])[0]).localeCompare((b.felder||[""])[0]);});
+
+  return(<div>
+    <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+      <input value={searchQ} onChange={function(e){setSearchQ(e.target.value);}}
+        placeholder="Person, Titel, Feld, Keyword…"
+        style={{flex:1,minWidth:160,background:P.white,color:P.dark,border:"1px solid "+P.creamDim,
+          borderRadius:6,padding:"6px 10px",fontSize:12,fontFamily:"Georgia,serif",outline:"none"}}/>
+      <select value={sortBy} onChange={function(e){setSortBy(e.target.value);}}
+        style={{background:P.white,color:P.mid,border:"1px solid "+P.creamDim,
+          borderRadius:6,padding:"5px 8px",fontSize:11}}>
+        <option value="connections">↓ Verbindungen</option>
+        <option value="alpha">A–Z Name</option>
+        <option value="felder">Feld</option>
+      </select>
+    </div>
+    <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}}>
+      {allFelder.map(function(f){var act=selFelder.indexOf(f)>=0;return(
+        <button key={f} onClick={function(){setSelFelder(function(prev){return act?prev.filter(function(x){return x!==f;}):[...prev,f];});}}
+          style={{background:act?P.tealPale:P.white,color:act?P.teal:P.light,
+            border:"1px solid "+(act?P.teal+"50":P.creamDim),
+            borderRadius:10,padding:"2px 7px",fontSize:9,cursor:"pointer"}}>{f.substring(0,20)}</button>
+      );})}
+    </div>
+    <div style={{color:P.light,fontSize:11,marginBottom:6}}>
+      {eps.length} von {EPISODES.length} Einträgen
+    </div>
+    <div style={{maxHeight:600,overflowY:"auto"}}>
+      {eps.map(function(ep){
+        var active=props.selected&&epId(props.selected)===epId(ep);
+        var inMerk=props.merkliste&&props.merkliste.indexOf(epId(ep))>=0;
+        var conns=connMap[epId(ep)]||0;
+        var col=sc((ep.spheres&&ep.spheres[0])||null);
+        return(<div key={epId(ep)} onClick={function(){props.onSelect(ep);}}
+          style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",
+            background:active?P.tealPale:P.white,cursor:"pointer",
+            borderBottom:"1px solid "+P.creamDim+"60",borderLeft:"3px solid "+(active?col:"transparent")}}>
+          <div style={{flex:1}}>
+            <div style={{color:active?P.teal:P.dark,fontSize:12,fontWeight:active?"bold":"normal"}}>
+              {(ep.title||ep.title_en||ep.guest||"").substring(0,55)}
+            </div>
+            <div style={{color:P.light,fontSize:10,marginTop:1}}>
+              {ep.guest&&ep.guest.substring(0,30)} · {(ep.felder||[])[0]||""}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
+            <span style={{background:col+"20",color:col,fontSize:9,padding:"1px 5px",borderRadius:8}}>
+              {conns} ↔
+            </span>
+            {inMerk&&<span style={{color:P.teal,fontSize:11}}>🔖</span>}
+            {ep.yt&&<button onClick={function(e){e.stopPropagation();props.onNavEp(ep);}}
+              style={{background:"none",border:"1px solid "+P.creamDim,color:P.light,
+                borderRadius:4,fontSize:10,padding:"1px 6px",cursor:"pointer"}}>→</button>}
+          </div>
+        </div>);
+      })}
+    </div>
+  </div>);
+}
+
+
 // ─── STORAGE HELPERS ─────────────────────────────────────────────────────
 function loadLS(key, fallback) {
   try { var v=localStorage.getItem(key); return v?JSON.parse(v):fallback; } 
@@ -1857,8 +2377,10 @@ function App(){
       questions:JSON.parse(localStorage.getItem("hk-questions")||"[]"),
       comments:JSON.parse(localStorage.getItem("hk-comments")||"{}"),
       customFrags:JSON.parse(localStorage.getItem("hk-custom-frags")||"[]"),
+      vtQuery:localStorage.getItem("hk-vt-query")||"",
+      vtHistory:JSON.parse(localStorage.getItem("hk-vt-history")||"[]"),
       exportedAt:new Date().toISOString(),
-      version:1,
+      version:2,
     };
     var json=JSON.stringify(data);
     var blob=new Blob([json],{type:"application/json"});
@@ -1879,6 +2401,8 @@ function App(){
         if(data.questions) localStorage.setItem("hk-questions",JSON.stringify(data.questions));
         if(data.comments) localStorage.setItem("hk-comments",JSON.stringify(data.comments));
         if(data.customFrags) localStorage.setItem("hk-custom-frags",JSON.stringify(data.customFrags));
+        if(data.vtQuery) localStorage.setItem("hk-vt-query",data.vtQuery);
+        if(data.vtHistory) localStorage.setItem("hk-vt-history",JSON.stringify(data.vtHistory));
         alert("✅ Sitzung importiert! Seite wird neu geladen.");
         window.location.reload();
       } catch(err){alert("❌ Import fehlgeschlagen: "+err.message);}
@@ -1930,6 +2454,9 @@ function App(){
   }
   var [discoveries,setDiscoveries]=useState(function(){return loadLS("hk-discoveries",[]);});
   var [multiSel,setMultiSel]=useState([]);  // array of epIds for multi-select
+  var [graphSubTab,setGraphSubTab]=useState("gefiltert");
+  var [graphSearchQ,setGraphSearchQ]=useState("");
+  var [graphSize,setGraphSize]=useState(60); // max nodes in graph
   var [pins,setPins]=useState(function(){return loadLS("hk-pins",[]);});
   var [tab,setTab]=useState("kompass");
   var [sphere,setSphere]=useState(null);
@@ -2028,99 +2555,85 @@ function App(){
             onNavEp={handleNavEp} onSelect={setSelected}
             position={idx2>=0?(idx2+1)+" / "+filtered.length:null}
             onPrev={idx2>0?function(){setSelected(filtered[idx2-1]);}:null}
-            onNext={idx2<filtered.length-1?function(){setSelected(filtered[idx2+1]);}:null}/></div>;
-        })()}
-      </div>)}
-      {tab==="graph"&&(<div style={{display:"grid",gridTemplateColumns:selected?"1fr 300px":"1fr",gap:20}}>
-        <div>
-          <GraphFilterPanel filters={gFilters} onChange={handleGFilter} filterMode={filterMode} onFilterMode={setFilterMode} onResetFilters={function(){setGFilters(defaultFilters());}} onResetLayout={function(){setResetKey(function(k){return k+1;});}} onResetPins={function(){setResetKey(function(k){return k+1;});}} onClearMulti={function(){setMultiSel([]);}}/>
-          <div style={{color:P.light,fontSize:11,marginBottom:8}}>{gFiltered.length} von {EPISODES.length} Einträge sichtbar</div>
-          <div style={{background:P.white,borderRadius:8,border:"1px solid "+P.creamDim,overflow:"hidden"}}>
-            <Graph key={resetKey} eps={gFiltered.length>0?gFiltered:EPISODES} selected={selected} multiSel={multiSel} onSelect={function(ep,shiftKey){
-        if(shiftKey){
-          var id=epId(ep);
-          setMultiSel(function(prev){
-            if(prev.indexOf(id)>=0) return prev.filter(function(x){return x!==id;});
-            return prev.concat([id]);
-          });
-        } else {
-          setMultiSel([]);
-          selToggle(ep);
-        }
-      }}/>
-          </div>
-          <div style={{color:P.light,fontSize:10,marginTop:6,textAlign:"center"}}>Knoten ziehen → bleiben fixiert · ⟳ Layout für Reset</div>
-        </div>
-        {selected&&(function(){
-          var src=gFiltered;
-          var idx2=src.findIndex(function(e){return epId(e)===epId(selected);});
-          return <DetailPanel ep={selected} onClose={function(){setSelected(null);}}
-            bookmarked={merkliste.indexOf(epId(selected))>=0} onBookmark={toggleBookmark}
-            onNavEp={handleNavEp} onSelect={setSelected}
-            position={idx2>=0?(idx2+1)+" / "+src.length:null}
-            onPrev={idx2>0?function(){setSelected(src[idx2-1]);}:null}
-            onNext={idx2<src.length-1?function(){setSelected(src[idx2+1]);}:null}/>;
-        })()}
-      </div>)}
-      {tab==="suche"&&(<div style={{display:"grid",gridTemplateColumns:selected?"1fr 300px":"1fr",gap:20}}>
-        <div>
-          {(function(){
-            var words = [];
-            if(search.trim().length >= 2){
-              var q = search.toLowerCase();
-              var seen = {};
-              EPISODES.forEach(function(ep){
-                (ep.keywords||[]).concat(ep.keywords_en||[]).forEach(function(k){
-                  if(k && k.toLowerCase().indexOf(q)>=0 && !seen[k.toLowerCase()]){
-                    seen[k.toLowerCase()]=true; words.push(k);
-                  }
-                });
-                if(ep.guest && ep.guest.toLowerCase().indexOf(q)>=0 && !seen[ep.guest.toLowerCase()]){
-                  seen[ep.guest.toLowerCase()]=true; words.push(ep.guest);
-                }
-              });
-              words = words.slice(0,6);
-            }
-            return(<div style={{position:"relative"}}>
-              <input value={search} onChange={function(e){setSearch(e.target.value);}}
-                onKeyDown={function(e){if(e.key==="Enter"&&words.length>0){setSearch(words[0]);}}}
-                placeholder="Person, Thema, Stichwort… (Enter für Vorschlag)"
-                style={{width:"100%",background:P.white,color:P.dark,border:"1px solid "+P.creamDim,
-                  borderRadius:6,padding:"10px 14px",fontSize:13,fontFamily:"Georgia,serif",
-                  outline:"none",boxSizing:"border-box"}}/>
-              {words.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:P.white,
-                border:"1px solid "+P.creamDim,borderRadius:"0 0 6px 6px",zIndex:100,boxShadow:"0 4px 12px rgba(0,0,0,0.1)"}}>
-                {words.map(function(w,i){return(
-                  <div key={w} onClick={function(){setSearch(w);}}
-                    style={{padding:"6px 14px",cursor:"pointer",fontSize:12,
-                      background:i===0?P.tealPale:"transparent",color:i===0?P.teal:P.dark,
-                      borderBottom:"1px solid "+P.creamDim}}>
-                    {i===0&&<span style={{fontSize:10,color:P.light,marginRight:6}}>↵</span>}
-                    {w}
-                  </div>
-                );})}
-              </div>}
-            </div>);
-          })()}
-          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:8}}>{SPHERES.map(function(s){return <button key={s.id} onClick={function(){setSphere(function(p){return p===s.id?null:s.id;});}} style={{background:sphere===s.id?s.pale:"transparent",color:s.color,border:"1px solid "+s.color+"60",borderRadius:12,padding:"3px 8px",fontSize:10,cursor:"pointer"}}>{s.iLabel.split(" ·")[0]}</button>;})}</div>
-          <div style={{color:P.light,fontSize:11,margin:"8px 0 6px"}}>{filtered.length} Einträge</div>
-          <div style={{maxHeight:520,overflowY:"auto"}}>{filtered.map(function(ep){return <EpCard key={epId(ep)} ep={ep} onClick={selToggle} active={selected&&epId(selected)===epId(ep)} bookmarked={merkliste.indexOf(epId(ep))>=0} onBookmark={toggleBookmark}/>;})}</div>
-        </div>
-        {selected&&(function(){
-          var src=filtered;
-          var idx2=src.findIndex(function(e){return epId(e)===epId(selected);});
-          return <DetailPanel ep={selected} onClose={function(){setSelected(null);}}
-            bookmarked={merkliste.indexOf(epId(selected))>=0} onBookmark={toggleBookmark}
-            onNavEp={handleNavEp} onSelect={setSelected}
-            position={idx2>=0?(idx2+1)+" / "+src.length:null}
-            onPrev={idx2>0?function(){setSelected(src[idx2-1]);}:null}
-            onNext={idx2<src.length-1?function(){setSelected(src[idx2+1]);}:null}/>;
-        })()}
-      </div>)}
-      {tab==="ki"&&<AIKompass merkliste={merkliste} onSave={saveDiscovery} onBookmark={toggleBookmark} onNavEp={handleNavEp}/>
-      }{tab==="volltextsuche"&&<VolltextSuche transcripts={transcripts} loading={transcriptsLoading} onLoad={loadTranscripts} onNavEp={handleNavEp} onSaveZitat={saveZitat} onBookmark={toggleBookmark} merkliste={merkliste}/>
-      }{tab==="smartsuche"&&<SmartSearch merkliste={merkliste} onBookmark={toggleBookmark} onNavEp={handleNavEp} filterMode={filterMode} onFilterMode={setFilterMode}/>
-      }{tab==="personen"&&<Personen onNavEp={handleNavEp}/>
+            onNext={idx2<filtab==="graph"&&(<div>
+      {/* Sub-tab navigation */}
+      <div style={{display:"flex",gap:4,marginBottom:12,flexWrap:"wrap",borderBottom:"2px solid "+P.creamDim,paddingBottom:8}}>
+        {[["gefiltert","🔍 Gefiltert"],["statisch","📍 Statisch"],["cluster","🫧 Cluster"],["matrix","⬛ Matrix"],["netz","🕸 Netz (klein)"],["liste","📋 Liste"]].map(function(t){
+          var act=graphSubTab===t[0];
+          return <button key={t[0]} onClick={function(){setGraphSubTab(t[0]);}}
+            style={{background:act?P.teal:P.white,color:act?P.white:P.mid,
+              border:"1px solid "+(act?P.teal:P.creamDim),borderRadius:6,
+              padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+            {t[1]}
+          </button>;
+        })}
+        <span style={{color:P.light,fontSize:10,alignSelf:"center",marginLeft:8}}>
+          {EPISODES.length} Einträge gesamt
+        </span>
+      </div>
+
+      {/* A: Gefilterter Graph */}
+      {graphSubTab==="gefiltert"&&<GraphGefiltert
+        eps={EPISODES} selected={selected}
+        merkliste={merkliste} onBookmark={toggleBookmark}
+        onSelect={selToggle} onNavEp={handleNavEp}
+        multiSel={multiSel}
+        onSelect2={function(ep,shiftKey){
+          if(shiftKey){var id=epId(ep);setMultiSel(function(prev){return prev.indexOf(id)>=0?prev.filter(function(x){return x!==id;}):prev.concat([id]);});}
+          else{setMultiSel([]);selToggle(ep);}
+        }}
+        onClearMulti={function(){setMultiSel([]);}}
+      />}
+
+      {/* B: Statisches Layout */}
+      {graphSubTab==="statisch"&&<GraphStatisch
+        eps={EPISODES} selected={selected}
+        onSelect={selToggle} onNavEp={handleNavEp}
+      />}
+
+      {/* C: Cluster */}
+      {graphSubTab==="cluster"&&<GraphCluster
+        eps={EPISODES} selected={selected}
+        onSelect={selToggle} onNavEp={handleNavEp}
+      />}
+
+      {/* D: Matrix */}
+      {graphSubTab==="matrix"&&<GraphMatrix
+        eps={EPISODES} selected={selected}
+        onSelect={selToggle} onNavEp={handleNavEp}
+      />}
+
+      {/* E: Kleines Netz */}
+      {graphSubTab==="netz"&&<GraphNetz
+        eps={EPISODES} selected={selected}
+        merkliste={merkliste}
+        onSelect={function(ep,shiftKey){
+          if(shiftKey){var id=epId(ep);setMultiSel(function(prev){return prev.indexOf(id)>=0?prev.filter(function(x){return x!==id;}):prev.concat([id]);});}
+          else{setMultiSel([]);selToggle(ep);}
+        }}
+        onNavEp={handleNavEp}
+        multiSel={multiSel}
+        resetKey={resetKey}
+      />}
+
+      {/* F: Liste */}
+      {graphSubTab==="liste"&&<GraphListe
+        eps={EPISODES} selected={selected}
+        onSelect={selToggle} onNavEp={handleNavEp}
+        merkliste={merkliste} onBookmark={toggleBookmark}
+      />}
+
+      {/* Detail panel */}
+      {selected&&<div style={{marginTop:12}}>
+        <DetailPanel ep={selected} onClose={function(){setSelected(null);}}
+          onSelect={function(ep){setSelected(ep);}}
+          onNavEp={handleNavEp}
+          onRemoveEp={function(id){setMerkliste(function(m){return m.filter(function(x){return x!==id;});});}}
+          isBookmarked={merkliste.indexOf(epId(selected))>=0}
+          onBookmark={function(){toggleBookmark(selected);}}
+        />
+      </div>}
+    </div>}{tab==="personen"&&<Personen onNavEp={handleNavEp}/>
       }{tab==="glossar"&&<Glossar onNavEp={handleNavEp}/>
       }{tab==="merkliste"&&<Merkliste merkliste={merkliste} zitate={zitate} onRemoveZitat={removeZitat} discoveries={discoveries} onRemoveEp={function(id){setMerkliste(function(p){return p.filter(function(x){return x!==id;});});}} onRemoveDisc={function(id){setDiscoveries(function(p){return p.filter(function(d){return d.id!==id;});});}} onShare={shareDiscovery} onNavEp={handleNavEp}/>
       }{tab==="community"&&<Gemeinschaft pins={pins} onNavEp={handleNavEp}/>}
