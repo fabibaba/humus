@@ -1903,6 +1903,68 @@ function VolltextSuche(props) {
 
 // ── A: GEFILTERTER GRAPH ─────────────────────────────────
 // Startet leer, zeigt nur gewählte Teilmenge
+function GraphTabs(props) {
+  var [graphSubTab, setGraphSubTab] = useState("gefiltert");
+
+  return(<div>
+    <div style={{display:"flex",gap:4,marginBottom:12,flexWrap:"wrap",
+      borderBottom:"2px solid "+P.creamDim,paddingBottom:8}}>
+      {[["gefiltert","🔍 Gefiltert"],["statisch","📍 Statisch"],
+        ["cluster","🫧 Cluster"],["matrix","⬛ Matrix"],
+        ["netz","🕸 Netz"],["liste","📋 Liste"]].map(function(t){
+        var act=graphSubTab===t[0];
+        return <button key={t[0]} onClick={function(){setGraphSubTab(t[0]);}}
+          style={{background:act?P.teal:P.white,color:act?P.white:P.mid,
+            border:"1px solid "+(act?P.teal:P.creamDim),borderRadius:6,
+            padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+          {t[1]}
+        </button>;
+      })}
+      <span style={{color:P.light,fontSize:10,alignSelf:"center",marginLeft:8}}>
+        {EPISODES.length} Einträge gesamt
+      </span>
+    </div>
+    {graphSubTab==="gefiltert"&&<GraphGefiltert
+      eps={props.eps} selected={props.selected}
+      merkliste={props.merkliste} onBookmark={props.onBookmark}
+      onSelect={props.onSelect} onNavEp={props.onNavEp}
+      multiSel={props.multiSel} onClearMulti={props.onClearMulti}
+    />}
+    {graphSubTab==="statisch"&&<GraphStatisch
+      eps={props.eps} selected={props.selected}
+      onSelect={function(ep){props.onSelect(ep,false);}} onNavEp={props.onNavEp}
+    />}
+    {graphSubTab==="cluster"&&<GraphCluster
+      eps={props.eps} selected={props.selected}
+      onSelect={function(ep){props.onSelect(ep,false);}} onNavEp={props.onNavEp}
+    />}
+    {graphSubTab==="matrix"&&<GraphMatrix
+      eps={props.eps} selected={props.selected}
+      onSelect={function(ep){props.onSelect(ep,false);}} onNavEp={props.onNavEp}
+    />}
+    {graphSubTab==="netz"&&<GraphNetz
+      eps={props.eps} selected={props.selected}
+      merkliste={props.merkliste}
+      onSelect={props.onSelect} onNavEp={props.onNavEp}
+      multiSel={props.multiSel} resetKey={props.resetKey}
+    />}
+    {graphSubTab==="liste"&&<GraphListe
+      eps={props.eps} selected={props.selected}
+      onSelect={function(ep){props.onSelect(ep,false);}} onNavEp={props.onNavEp}
+      merkliste={props.merkliste} onBookmark={props.onBookmark}
+    />}
+    {props.selected&&<div style={{marginTop:12}}>
+      <DetailPanel ep={props.selected}
+        onClose={function(){props.onSelect(null,false);}}
+        onSelect={function(ep){props.onSelect(ep,false);}}
+        onNavEp={props.onNavEp}
+        isBookmarked={props.merkliste&&props.merkliste.indexOf(epId(props.selected))>=0}
+        onBookmark={function(){props.onBookmark(props.selected);}}
+      />
+    </div>}
+  </div>);
+}
+
 function GraphGefiltert(props) {
   var [searchQ, setSearchQ] = useState("");
   var [selFelder, setSelFelder] = useState([]);
@@ -2580,86 +2642,22 @@ function App(){
             onNavEp={handleNavEp} onSelect={setSelected}
             position={idx2>=0?(idx2+1)+" / "+filtered.length:null}
             onPrev={idx2>0?function(){setSelected(filtered[idx2-1]);}:null}
-            onNext={idx2<filtab==="graph"&&(<div>
-      {/* Sub-tab navigation */}
-      <div style={{display:"flex",gap:4,marginBottom:12,flexWrap:"wrap",borderBottom:"2px solid "+P.creamDim,paddingBottom:8}}>
-        {[["gefiltert","🔍 Gefiltert"],["statisch","📍 Statisch"],["cluster","🫧 Cluster"],["matrix","⬛ Matrix"],["netz","🕸 Netz (klein)"],["liste","📋 Liste"]].map(function(t){
-          var act=graphSubTab===t[0];
-          return <button key={t[0]} onClick={function(){setGraphSubTab(t[0]);}}
-            style={{background:act?P.teal:P.white,color:act?P.white:P.mid,
-              border:"1px solid "+(act?P.teal:P.creamDim),borderRadius:6,
-              padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"Georgia,serif"}}>
-            {t[1]}
-          </button>;
-        })}
-        <span style={{color:P.light,fontSize:10,alignSelf:"center",marginLeft:8}}>
-          {EPISODES.length} Einträge gesamt
-        </span>
-      </div>
-
-      {/* A: Gefilterter Graph */}
-      {graphSubTab==="gefiltert"&&<GraphGefiltert
-        eps={EPISODES} selected={selected}
-        merkliste={merkliste} onBookmark={toggleBookmark}
-        onSelect={selToggle} onNavEp={handleNavEp}
-        multiSel={multiSel}
-        onSelect2={function(ep,shiftKey){
-          if(shiftKey){var id=epId(ep);setMultiSel(function(prev){return prev.indexOf(id)>=0?prev.filter(function(x){return x!==id;}):prev.concat([id]);});}
-          else{setMultiSel([]);selToggle(ep);}
-        }}
-        onClearMulti={function(){setMultiSel([]);}}
-      />}
-
-      {/* B: Statisches Layout */}
-      {graphSubTab==="statisch"&&<GraphStatisch
-        eps={EPISODES} selected={selected}
-        onSelect={selToggle} onNavEp={handleNavEp}
-      />}
-
-      {/* C: Cluster */}
-      {graphSubTab==="cluster"&&<GraphCluster
-        eps={EPISODES} selected={selected}
-        onSelect={selToggle} onNavEp={handleNavEp}
-      />}
-
-      {/* D: Matrix */}
-      {graphSubTab==="matrix"&&<GraphMatrix
-        eps={EPISODES} selected={selected}
-        onSelect={selToggle} onNavEp={handleNavEp}
-      />}
-
-      {/* E: Kleines Netz */}
-      {graphSubTab==="netz"&&<GraphNetz
-        eps={EPISODES} selected={selected}
+            onNext={idx2<filtered.length-1?function(){setSelected(filtered[idx2+1]);}:null}
+      {tab==="graph"&&<GraphTabs
+        eps={EPISODES}
+        selected={selected}
         merkliste={merkliste}
+        multiSel={multiSel}
+        resetKey={resetKey}
         onSelect={function(ep,shiftKey){
           if(shiftKey){var id=epId(ep);setMultiSel(function(prev){return prev.indexOf(id)>=0?prev.filter(function(x){return x!==id;}):prev.concat([id]);});}
           else{setMultiSel([]);selToggle(ep);}
         }}
+        onClearMulti={function(){setMultiSel([]);}}
         onNavEp={handleNavEp}
-        multiSel={multiSel}
-        resetKey={resetKey}
+        onBookmark={toggleBookmark}
       />}
-
-      {/* F: Liste */}
-      {graphSubTab==="liste"&&<GraphListe
-        eps={EPISODES} selected={selected}
-        onSelect={selToggle} onNavEp={handleNavEp}
-        merkliste={merkliste} onBookmark={toggleBookmark}
-      />}
-
-      {/* Detail panel */}
-      {selected&&<div style={{marginTop:12}}>
-        <DetailPanel ep={selected} onClose={function(){setSelected(null);}}
-          onSelect={function(ep){setSelected(ep);}}
-          onNavEp={handleNavEp}
-          onRemoveEp={function(id){setMerkliste(function(m){return m.filter(function(x){return x!==id;});});}}
-          isBookmarked={merkliste.indexOf(epId(selected))>=0}
-          onBookmark={function(){toggleBookmark(selected);}}
-        />
-      </div>}
-    </div>)
-    }{tab==="personen"&&<Personen onNavEp={handleNavEp}/>
+      {tab==="personen"&&<Personen onNavEp={handleNavEp}/>
       }{tab==="glossar"&&<Glossar onNavEp={handleNavEp}/>
       }{tab==="merkliste"&&<Merkliste merkliste={merkliste} zitate={zitate} onRemoveZitat={removeZitat} discoveries={discoveries} onRemoveEp={function(id){setMerkliste(function(p){return p.filter(function(x){return x!==id;});});}} onRemoveDisc={function(id){setDiscoveries(function(p){return p.filter(function(d){return d.id!==id;});});}} onShare={shareDiscovery} onNavEp={handleNavEp}/>
       }{tab==="community"&&<Gemeinschaft pins={pins} onNavEp={handleNavEp}/>}
