@@ -472,7 +472,7 @@ if(eps.length > maxN){
   visEps=eps.filter(function(e){return topIds[epId(e)];});
 }
 var nodes=visEps.map(function(ep){return{id:epId(ep),ep:ep,r:ep.type==="guest"?12:9};});
-var links=[];for(var i=0;i<visEps.length;i++){for(var j=i+1;j<visEps.length;j++){var a=visEps[i],b=visEps[j];var ss=a.spheres.f="guest"?12:9};});var links=[];for(var i=0;i<eps.length;i++){for(var j=i+1;j<eps.length;j++){var a=eps[i],b=eps[j];var ss=a.spheres.filter(function(s){return b.spheres.indexOf(s)>=0;}).length,sf=a.felder.filter(function(f){return b.felder.indexOf(f)>=0;}).length;if(ss+sf>=3)links.push({source:epId(a),target:epId(b),str:ss*2+sf,col:sc(a.spheres[0])});}}var ctr={};SPHERES.forEach(function(s,i){var angles=[Math.PI*1.5,Math.PI*0.8,Math.PI*0.15];ctr[s.id]={x:w/2+Math.cos(angles[i])*w*0.42,y:h/2+Math.sin(angles[i])*h*0.46};});// Find top-5 most connected nodes → place as pentagon, pre-pinned
+var links=[];for(var i=0;i<visEps.length;i++){for(var j=i+1;j<visEps.length;j++){var a=visEps[i],b=visEps[j];var ss=a.spheres.filter(function(s){return b.spheres.indexOf(s)>=0;}).length,sf=a.felder.filter(function(f){return b.felder.indexOf(f)>=0;}).length;if(ss+sf>=3)links.push({source:epId(a),target:epId(b),str:ss*2+sf,col:sc(a.spheres[0])});}}var ctr={};SPHERES.forEach(function(s,i){var angles=[Math.PI*1.5,Math.PI*0.8,Math.PI*0.15];ctr[s.id]={x:w/2+Math.cos(angles[i])*w*0.42,y:h/2+Math.sin(angles[i])*h*0.46};});// Find top-5 most connected nodes → place as pentagon, pre-pinned
 var connectionCount = {};
 links.forEach(function(l){
   connectionCount[l.source] = (connectionCount[l.source]||0)+1;
