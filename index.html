@@ -2635,19 +2635,16 @@ function App(){
           <div style={{maxHeight:560,overflowY:"auto",paddingRight:4}}>
             {filtered.length===0?<div style={{color:P.light,fontSize:13}}>Keine Einträge.</div>:filtered.map(function(ep){return <EpCard key={epId(ep)} ep={ep} onClick={selToggle} active={selected&&epId(selected)===epId(ep)} bookmarked={merkliste.indexOf(epId(ep))>=0} onBookmark={toggleBookmark}/>;})}</div>
         </div>
-        {selected&&(function(){
-          var idx2=filtered.findIndex(function(e){return epId(e)===epId(selected);});
-          return <div style={{gridColumn:"1 / -1"}}><DetailPanel ep={selected} onClose={function(){setSelected(null);}}
-            bookmarked={merkliste.indexOf(epId(selected))>=0} onBookmark={toggleBookmark}
-            onNavEp={handleNavEp} onSelect={setSelected}
-            position={idx2>=0?(idx2+1)+" / "+filtered.length:null}
-            onPrev={idx2>0?function(){setSelected(filtered[idx2-1]);}:null}
-            onNext={idx2<filtered.length-1?function(){setSelected(filtered[idx2+1]);}:null}/>
-          </div>)
-        }
+        {selected&&<div style={{gridColumn:"1 / -1"}}><DetailPanel ep={selected}
+          onClose={function(){setSelected(null);}}
+          bookmarked={merkliste.indexOf(epId(selected))>=0} onBookmark={toggleBookmark}
+          onNavEp={handleNavEp} onSelect={setSelected}
+          position={(function(){var idx2=filtered.findIndex(function(e){return epId(e)===epId(selected);});return idx2>=0?(idx2+1)+" / "+filtered.length:null;})()}
+          onPrev={(function(){var idx2=filtered.findIndex(function(e){return epId(e)===epId(selected);});return idx2>0?function(){setSelected(filtered[idx2-1]);}:null;})()}
+          onNext={(function(){var idx2=filtered.findIndex(function(e){return epId(e)===epId(selected);});return idx2<filtered.length-1?function(){setSelected(filtered[idx2+1]);}:null;})()}
+        /></div>}
       </div>
-    </div>
-    )}}
+    )}
       {tab==="graph"&&<GraphTabs
         eps={EPISODES}
         selected={selected}
