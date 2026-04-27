@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -2659,8 +2658,8 @@ function App(){
           onBookmark={function(){toggleBookmark(selected);}}
         />
       </div>}
-    </div>}
-    {tab==="personen"&&<Personen onNavEp={handleNavEp}/>
+    </div>)
+    }{tab==="personen"&&<Personen onNavEp={handleNavEp}/>
       }{tab==="glossar"&&<Glossar onNavEp={handleNavEp}/>
       }{tab==="merkliste"&&<Merkliste merkliste={merkliste} zitate={zitate} onRemoveZitat={removeZitat} discoveries={discoveries} onRemoveEp={function(id){setMerkliste(function(p){return p.filter(function(x){return x!==id;});});}} onRemoveDisc={function(id){setDiscoveries(function(p){return p.filter(function(d){return d.id!==id;});});}} onShare={shareDiscovery} onNavEp={handleNavEp}/>
       }{tab==="community"&&<Gemeinschaft pins={pins} onNavEp={handleNavEp}/>}
