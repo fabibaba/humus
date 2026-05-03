@@ -2659,6 +2659,27 @@ function App(){
         onNavEp={handleNavEp}
         onBookmark={toggleBookmark}
       />}
+      {tab==="suche"&&<SmartSearch
+        merkliste={merkliste} onBookmark={toggleBookmark}
+        filterMode={filterMode} onFilterMode={setFilterMode}
+        onNavEp={handleNavEp}
+      />}
+      {tab==="ki"&&<AIKompass
+        merkliste={merkliste} onBookmark={toggleBookmark}
+        onNavEp={handleNavEp}
+        onSave={function(d){setDiscoveries(function(p){return p.concat([d]);});}}
+      />}
+      {tab==="smartsuche"&&<SmartSearch
+        merkliste={merkliste} onBookmark={toggleBookmark}
+        filterMode={filterMode} onFilterMode={setFilterMode}
+        onNavEp={handleNavEp}
+      />}
+      {tab==="volltextsuche"&&<VolltextSuche
+        transcripts={transcripts} loading={transcriptsLoading}
+        onLoad={loadTranscripts}
+        onNavEp={handleNavEp}
+        onSaveZitat={saveZitat}
+      />}
       {tab==="personen"&&<Personen onNavEp={handleNavEp}/>
       }{tab==="glossar"&&<Glossar onNavEp={handleNavEp}/>
       }{tab==="merkliste"&&<Merkliste merkliste={merkliste} zitate={zitate} onRemoveZitat={removeZitat} discoveries={discoveries} onRemoveEp={function(id){setMerkliste(function(p){return p.filter(function(x){return x!==id;});});}} onRemoveDisc={function(id){setDiscoveries(function(p){return p.filter(function(d){return d.id!==id;});});}} onShare={shareDiscovery} onNavEp={handleNavEp}/>
